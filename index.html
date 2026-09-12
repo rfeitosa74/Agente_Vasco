@@ -1,4 +1,6 @@
 <title>Sorteio Auditável</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root {
@@ -59,7 +61,8 @@
   }
 
   * { box-sizing: border-box; }
-  html, body { height: 100%; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; }
   body {
     height: 100vh; height: 100dvh;
     overflow: hidden;
@@ -68,32 +71,32 @@
     color: var(--ink);
     font-family: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
     font-size: 15px;
-    line-height: 1.45;
-    padding-inline: clamp(16px, 2.5vw, 32px);
-    padding-block: 10px 14px;
+    line-height: 1.5;
+    padding-inline: clamp(16px, 3vw, 36px);
+    padding-block: 0 12px;
   }
-  .app {
+  .wrap {
+    max-width: 1080px; width: 100%; margin-inline: auto;
     flex: 1; min-height: 0;
     display: flex; flex-direction: column;
-    width: 100%; max-width: 1150px; margin-inline: auto;
   }
 
   header {
-    display: flex; align-items: center; gap: 10px 16px;
-    padding-block: 2px 10px; flex-wrap: wrap;
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px;
+    padding-block: 12px 12px; flex: 0 0 auto;
   }
   h1 {
     font-family: "Bricolage Grotesque", "Instrument Sans", sans-serif;
-    font-weight: 800; font-size: clamp(19px, 2.6vw, 24px);
-    letter-spacing: -.01em; margin: 0;
+    font-weight: 800; font-size: clamp(21px, 2.8vw, 26px);
+    letter-spacing: -.01em; margin: 0; text-wrap: balance;
   }
-  .tagline { color: var(--muted); font-size: 13px; flex: 1 1 auto; }
-  @media (max-width: 700px) { .tagline { display: none; } h1 { flex: 1 1 auto; } }
-  .header-acoes { display: flex; gap: 8px; margin-left: auto; }
+  .tagline { color: var(--muted); font-size: 13px; }
+  .tagline .dot { color: var(--accent); font-weight: 600; }
+  @media (max-width: 700px), (max-height: 600px) { .tagline { display: none; } }
 
   main {
     flex: 1; min-height: 0;
-    display: grid; grid-template-columns: 1.05fr 1fr; gap: 14px;
+    display: grid; grid-template-columns: 1.05fr 1fr; gap: 16px;
     align-items: stretch;
   }
 
@@ -106,125 +109,88 @@
   }
   .card-h {
     display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-    padding: 12px 16px 0; flex: 0 0 auto;
+    padding: 12px 18px 0; flex: 0 0 auto;
   }
   .card-h h2 {
     font-family: "Bricolage Grotesque", sans-serif;
     font-size: 16px; font-weight: 700; margin: 0; flex: 1 1 auto;
   }
   .card-b {
-    padding: 10px 16px 14px;
-    display: flex; flex-direction: column; gap: 10px;
-    flex: 1; min-height: 0;
+    padding: 10px 18px 14px; display: flex; flex-direction: column; gap: 10px;
+    flex: 1; min-height: 0; overflow-y: auto;
   }
 
   .chip {
-    font-family: "IBM Plex Mono", monospace; font-size: 11.5px; font-weight: 500;
-    padding: 2px 9px; border-radius: 999px; white-space: nowrap;
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 500;
+    padding: 3px 9px; border-radius: 999px; white-space: nowrap;
     background: var(--surface-2); color: var(--muted); border: 1px solid var(--line);
     font-variant-numeric: tabular-nums;
   }
+  .chip.ok { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
   .chip.warn { background: var(--danger-soft); color: var(--danger); border-color: transparent; }
 
-  label { font-weight: 600; font-size: 13px; }
-  .hint { color: var(--muted); font-size: 12.5px; margin: 0; }
+  label { font-weight: 600; font-size: 13.5px; }
+  .hint { color: var(--muted); font-size: 13px; margin: 0; }
 
   textarea {
     width: 100%; resize: none;
     background: var(--surface-2); color: var(--ink);
     border: 1px solid var(--line); border-radius: 8px;
-    padding: 9px 11px;
+    padding: 9px 12px;
     font-family: "IBM Plex Mono", monospace; font-size: 12.5px; line-height: 1.65;
   }
   #lista { flex: 1; min-height: 70px; }
-  textarea:focus-visible, input:focus-visible, button:focus-visible {
+  textarea:focus-visible, input:focus-visible, button:focus-visible, summary:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 2px;
   }
 
-  .opts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; flex: 0 0 auto; }
-  .opt { display: flex; align-items: center; gap: 7px; }
+  .opts { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 22px; }
+  .opt { display: flex; align-items: center; gap: 8px; }
   input[type="number"] {
-    width: 66px; background: var(--surface-2); color: var(--ink);
-    border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px;
-    font-family: "IBM Plex Mono", monospace; font-size: 13.5px;
+    width: 74px; background: var(--surface-2); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
+    font-family: "IBM Plex Mono", monospace; font-size: 14px;
   }
-  input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); }
+  input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
 
   .fingerprint {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px;
-    border-top: 1px dashed var(--line); padding-top: 8px;
-    color: var(--muted); font-size: 12px; flex: 0 0 auto;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+    border-top: 1px dashed var(--line); padding-top: 12px;
+    color: var(--muted); font-size: 13px;
   }
   .fingerprint code {
-    font-family: "IBM Plex Mono", monospace; font-size: 11.5px; font-weight: 600;
-    color: var(--accent); letter-spacing: .03em; overflow-wrap: anywhere;
+    font-family: "IBM Plex Mono", monospace; font-size: 12.5px; font-weight: 600;
+    color: var(--accent); letter-spacing: .04em; overflow-wrap: anywhere;
   }
 
   button {
     font: inherit; font-weight: 600; cursor: pointer;
     border-radius: 9px; border: 1px solid var(--line);
     background: var(--surface); color: var(--ink);
-    padding: 7px 13px;
+    padding: 8px 14px;
   }
   button:hover { border-color: var(--accent); }
   button:disabled { opacity: .45; cursor: not-allowed; }
   .btn-primary {
     background: var(--accent); border-color: var(--accent); color: var(--on-accent);
     font-family: "Bricolage Grotesque", sans-serif; font-weight: 700;
-    font-size: 16.5px; padding: 12px 18px; width: 100%; flex: 0 0 auto;
+    font-size: 17px; padding: 13px 18px; width: 100%;
   }
   .btn-primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
-  .btn-small { font-size: 12.5px; padding: 4px 10px; }
+  .btn-small { font-size: 13px; padding: 5px 11px; }
 
-  .steps { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; counter-reset: passo; overflow-y: auto; min-height: 0; }
-  .steps li { display: flex; gap: 11px; counter-increment: passo; }
+  .steps { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; counter-reset: passo; }
+  .steps li { display: flex; gap: 12px; counter-increment: passo; }
   .steps li::before {
     content: counter(passo);
-    font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: 11.5px;
+    font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: 12px;
     color: var(--accent); background: var(--accent-soft);
-    width: 22px; height: 22px; border-radius: 999px; flex: 0 0 auto;
+    width: 24px; height: 24px; border-radius: 999px; flex: 0 0 auto;
     display: grid; place-items: center; margin-top: 1px;
   }
-  .steps b { display: block; font-size: 13.5px; }
-  .steps p { margin: 1px 0 0; color: var(--muted); font-size: 12.5px; }
+  .steps b { display: block; font-size: 14px; }
+  .steps p { margin: 1px 0 0; color: var(--muted); font-size: 13.5px; }
 
-  #vencedores {
-    display: none; flex-direction: column; gap: 7px; margin: 0; padding: 2px;
-    list-style: none; overflow-y: auto; min-height: 0; flex: 1;
-  }
-  #vencedores li {
-    display: flex; align-items: baseline; gap: 11px;
-    background: var(--surface-2); border: 1px solid var(--line);
-    border-radius: 9px; padding: 8px 13px; flex: 0 0 auto;
-    overflow-wrap: anywhere;
-  }
-  #vencedores li .pos {
-    font-family: "IBM Plex Mono", monospace; font-size: 11.5px; font-weight: 600;
-    color: var(--muted); flex: 0 0 auto; font-variant-numeric: tabular-nums;
-  }
-  #vencedores li .nome { font-weight: 600; font-size: 14.5px; }
-  #vencedores li.ouro { background: var(--gold-soft); border-color: var(--gold); }
-  #vencedores li.ouro .pos { color: var(--gold); }
-  #vencedores li.ouro .nome {
-    font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 17px;
-  }
-  @media (prefers-reduced-motion: no-preference) {
-    #vencedores li { animation: entrar .35s ease both; }
-    @keyframes entrar { from { opacity: 0; transform: translateY(6px); } }
-  }
-
-  .meta {
-    display: none; color: var(--muted); font-size: 11.5px;
-    font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums;
-    overflow-wrap: anywhere; flex: 0 0 auto;
-  }
-
-  #ata-box { display: none; flex-direction: column; gap: 6px; flex: 0 0 auto; }
-  #ata { height: 84px; font-size: 11px; }
-  .ata-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .copiado { color: var(--accent); font-size: 12.5px; font-weight: 600; }
-
-  /* ---------- sobreposições ---------- */
   #overlay-contagem {
     display: none; position: fixed; inset: 0; z-index: 100;
     place-items: center;
@@ -249,72 +215,96 @@
     color: var(--accent);
     font-variant-numeric: tabular-nums;
   }
+  #vencedores { display: none; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  #vencedores li {
+    display: flex; align-items: baseline; gap: 12px;
+    background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 9px; padding: 10px 14px;
+    overflow-wrap: anywhere;
+  }
+  #vencedores li .pos {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 600;
+    color: var(--muted); flex: 0 0 auto; font-variant-numeric: tabular-nums;
+  }
+  #vencedores li .nome { font-weight: 600; font-size: 15.5px; }
+  #vencedores li.ouro {
+    background: var(--gold-soft); border-color: var(--gold);
+  }
+  #vencedores li.ouro .pos { color: var(--gold); }
+  #vencedores li.ouro .nome {
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 18px;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    #vencedores li { animation: entrar .35s ease both; }
+    @keyframes entrar { from { opacity: 0; transform: translateY(6px); } }
+  }
 
-  .modal {
-    position: fixed; inset: 0; z-index: 90;
-    display: grid; place-items: center;
-    background: var(--scrim);
-    padding: 16px;
+  .meta {
+    display: none; color: var(--muted); font-size: 12.5px;
+    font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
   }
-  .modal-card {
-    background: var(--surface); border: 1px solid var(--line);
-    border-radius: 12px; box-shadow: var(--shadow);
-    width: min(560px, 100%); max-height: 88vh; max-height: 88dvh;
-    display: flex; flex-direction: column; min-height: 0;
-  }
-  .modal-card .card-b { overflow-y: auto; }
-  .modal-fechar {
-    font-size: 18px; line-height: 1; padding: 4px 10px;
-    border: none; background: none; color: var(--muted); flex: 0 0 auto;
-  }
-  .modal-fechar:hover { color: var(--ink); }
 
-  #verif-res { display: none; border-radius: 9px; padding: 9px 13px; font-size: 13.5px; flex: 0 0 auto; }
+  #ata-box { display: none; flex-direction: column; gap: 8px; }
+  #ata { min-height: 110px; font-size: 11.5px; }
+  .ata-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .copiado { color: var(--accent); font-size: 13px; font-weight: 600; }
+
+  details { border-top: 1px solid var(--line); flex: 0 0 auto; }
+  details .card-b { padding-top: 4px; flex: none; max-height: 42vh; overflow-y: auto; }
+  summary {
+    cursor: pointer; padding: 13px 18px;
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 15px;
+    list-style: none; display: flex; align-items: center; gap: 8px;
+  }
+  summary::before { content: "▸"; color: var(--accent); transition: transform .15s; }
+  details[open] summary::before { transform: rotate(90deg); }
+
+  #verif-res { display: none; border-radius: 9px; padding: 10px 14px; font-size: 14px; }
   #verif-res.ok { background: var(--accent-soft); color: var(--accent); }
   #verif-res.falha { background: var(--danger-soft); color: var(--danger); }
-  #verif-res ul { margin: 5px 0 0; padding-left: 18px; }
+  #verif-res ul { margin: 6px 0 0; padding-left: 18px; }
 
-  .rodape-modal {
-    color: var(--muted); font-size: 12px; margin: 0;
-    border-top: 1px dashed var(--line); padding-top: 10px;
+  footer {
+    margin-top: 10px; color: var(--muted); font-size: 11.5px;
+    flex: 0 0 auto; line-height: 1.45;
   }
-  .rodape-modal code { font-family: "IBM Plex Mono", monospace; font-size: 11px; }
+  footer code { font-family: "IBM Plex Mono", monospace; font-size: 11px; }
+  @media (max-height: 640px) { footer { display: none; } }
 
   #btn-fechar-res { display: none; }
 
-  /* ---------- telas estreitas: resultado vira tela cheia ---------- */
-  @media (max-width: 860px) {
+  /* Telas estreitas: uma coluna; o resultado abre em tela cheia após o sorteio */
+  @media (max-width: 900px) {
     main { grid-template-columns: 1fr; }
     #painel-res { display: none; }
     #painel-res.aberto {
       display: flex; position: fixed; inset: 0; z-index: 80;
       border-radius: 0; border: none;
-      padding-inline: 16px; padding-block: 10px 14px;
+      padding-inline: 16px; padding-block: 8px 12px;
     }
     #btn-fechar-res { display: inline-block; }
+    footer { display: none; }
   }
 </style>
 
-<div class="app">
+<div class="wrap">
   <header>
     <h1>Sorteio Auditável</h1>
-    <span class="tagline">aleatoriedade criptográfica · sem viés · resultado verificável</span>
-    <div class="header-acoes">
-      <button class="btn-small" id="btn-info" type="button">Como funciona</button>
-      <button class="btn-small" id="btn-abrir-verif" type="button">Verificar</button>
-    </div>
+    <span class="tagline">aleatoriedade criptográfica <span class="dot">·</span> sem viés <span class="dot">·</span> resultado verificável por qualquer pessoa</span>
   </header>
 
   <main>
-    <section class="card" id="painel-lista" aria-label="Participantes">
+    <section class="card" aria-label="Participantes">
       <div class="card-h">
         <h2>Participantes</h2>
         <span class="chip" id="chip-total">0 participantes</span>
         <span class="chip warn" id="chip-dup" hidden>0 duplicados</span>
       </div>
       <div class="card-b">
-        <p class="hint">Um participante por linha — só o nome, ou nome + e-mail + telefone. A lista abaixo é um <b>exemplo</b>: apague e cole a sua.</p>
-        <textarea id="lista" spellcheck="false" aria-label="Lista de participantes, um por linha">Ana Souza — ana.souza@exemplo.com — (11) 98888-0001
+        <label for="lista">Um participante por linha</label>
+        <p class="hint">Cada linha pode ter o que você precisar — só o nome, ou nome + e-mail + telefone. A linha inteira identifica o participante. A lista abaixo é um <b>exemplo</b>: apague e cole a sua.</p>
+        <textarea id="lista" spellcheck="false">Ana Souza — ana.souza@exemplo.com — (11) 98888-0001
 Bruno Lima — bruno.lima@exemplo.com — (21) 97777-0002
 Carla Mendes — carla.mendes@exemplo.com
 Diego Ferreira — (31) 96666-0004
@@ -327,17 +317,17 @@ Henrique Alves — (51) 94444-0008</textarea>
           <div class="opt">
             <label for="n-vencedores">Nº de sorteados</label>
             <input type="number" id="n-vencedores" min="1" step="1" value="1">
-            <span class="hint" id="lim-venc">até 0</span>
+            <span class="hint" id="lim-venc">até 0 · classificados do 1º em diante</span>
           </div>
           <div class="opt">
             <input type="checkbox" id="ignora-dup" checked>
-            <label for="ignora-dup">Ignorar duplicados</label>
+            <label for="ignora-dup">Ignorar linhas duplicadas</label>
           </div>
-          <button class="btn-small" id="btn-limpar" type="button">Limpar</button>
+          <button class="btn-small" id="btn-limpar" type="button">Limpar lista</button>
         </div>
 
         <div class="fingerprint">
-          <span>SHA-256 da lista:</span>
+          <span>Impressão digital da lista (SHA-256):</span>
           <code id="hash-vivo">—</code>
         </div>
 
@@ -355,19 +345,19 @@ Henrique Alves — (51) 94444-0008</textarea>
           <li>
             <div>
               <b>Aleatoriedade do sistema operacional</b>
-              <p>Números de <span style="font-family:'IBM Plex Mono',monospace">crypto.getRandomValues</span>, o gerador criptográfico do seu dispositivo. Nada de <span style="font-family:'IBM Plex Mono',monospace">Math.random()</span>.</p>
+              <p>Os números vêm de <span style="font-family:'IBM Plex Mono',monospace">crypto.getRandomValues</span>, o gerador criptográfico do seu dispositivo — o mesmo usado para gerar chaves de segurança. Nada de <span style="font-family:'IBM Plex Mono',monospace">Math.random()</span>.</p>
             </div>
           </li>
           <li>
             <div>
               <b>Sem viés de posição</b>
-              <p>Rejection sampling + Fisher–Yates: cada participante tem exatamente a mesma chance, do topo ao fim da lista.</p>
+              <p>Rejection sampling elimina o viés de módulo e o embaralhamento Fisher–Yates dá a cada participante exatamente a mesma chance, esteja no topo ou no fim da lista.</p>
             </div>
           </li>
           <li>
             <div>
               <b>Ata verificável</b>
-              <p>Cada sorteio gera uma ata com o SHA-256 da lista e os números usados. Com a ata + a lista, qualquer pessoa reproduz o resultado no botão “Verificar”.</p>
+              <p>Cada sorteio gera uma ata com a impressão digital SHA-256 da lista e os números aleatórios usados. Com a ata + a lista, qualquer pessoa reproduz o resultado na aba “Verificar” — se a lista ou o resultado forem alterados, a verificação falha.</p>
             </div>
           </li>
         </ol>
@@ -383,70 +373,36 @@ Henrique Alves — (51) 94444-0008</textarea>
             <button class="btn-small" id="btn-novo" type="button">Novo sorteio</button>
             <span class="copiado" id="aviso-copiado" hidden>Copiada ✓</span>
           </div>
+          <p class="hint">Guarde a ata e a lista exata dos participantes. Juntas, elas provam o resultado.</p>
         </div>
       </div>
+
+      <details id="verificar">
+        <summary>Verificar um sorteio</summary>
+        <div class="card-b">
+          <p class="hint">Cole a lista original de participantes e a ata. A verificação recalcula a impressão digital e refaz o sorteio com os mesmos números registrados.</p>
+          <label for="verif-lista">Lista original</label>
+          <textarea id="verif-lista" spellcheck="false" style="min-height:90px"></textarea>
+          <label for="verif-ata">Ata (JSON)</label>
+          <textarea id="verif-ata" spellcheck="false" style="min-height:90px"></textarea>
+          <div class="ata-actions">
+            <button class="btn-small" id="btn-verificar" type="button">Verificar</button>
+          </div>
+          <div id="verif-res"></div>
+        </div>
+      </details>
     </section>
   </main>
+
+  <footer>
+    Tudo acontece no seu navegador — a lista não é enviada a servidor algum. Algoritmo
+    <code>FY-RS-SHA256-v1</code>: inteiros uniformes por rejection sampling sobre
+    <code>crypto.getRandomValues</code> (CSPRNG), seleção por Fisher–Yates parcial, integridade por SHA-256.
+  </footer>
 </div>
 
 <div id="overlay-contagem" role="timer" aria-label="Contagem regressiva para o sorteio">
   <div class="anel" id="anel"><span id="num-contagem">3</span></div>
-</div>
-
-<div class="modal" id="modal-info" hidden>
-  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="titulo-info">
-    <div class="card-h">
-      <h2 id="titulo-info">Como o sorteio é protegido</h2>
-      <button class="modal-fechar" data-fecha="modal-info" type="button" aria-label="Fechar">✕</button>
-    </div>
-    <div class="card-b">
-      <ol class="steps">
-        <li>
-          <div>
-            <b>Aleatoriedade do sistema operacional</b>
-            <p>Os números vêm de <span style="font-family:'IBM Plex Mono',monospace">crypto.getRandomValues</span>, o gerador criptográfico do seu dispositivo — o mesmo usado para gerar chaves de segurança. Nada de <span style="font-family:'IBM Plex Mono',monospace">Math.random()</span>.</p>
-          </div>
-        </li>
-        <li>
-          <div>
-            <b>Sem viés de posição</b>
-            <p>Rejection sampling elimina o viés de módulo e o embaralhamento Fisher–Yates dá a cada participante exatamente a mesma chance, esteja no topo ou no fim da lista.</p>
-          </div>
-        </li>
-        <li>
-          <div>
-            <b>Ata verificável</b>
-            <p>Cada sorteio gera uma ata com a impressão digital SHA-256 da lista e os números aleatórios usados. Com a ata + a lista, qualquer pessoa reproduz o resultado em “Verificar” — se a lista ou o resultado forem alterados, a verificação falha.</p>
-          </div>
-        </li>
-      </ol>
-      <p class="rodape-modal">
-        Tudo acontece no seu navegador — a lista não é enviada a servidor algum. Algoritmo
-        <code>FY-RS-SHA256-v1</code>: inteiros uniformes por rejection sampling sobre
-        <code>crypto.getRandomValues</code> (CSPRNG), seleção por Fisher–Yates parcial, integridade por SHA-256.
-      </p>
-    </div>
-  </div>
-</div>
-
-<div class="modal" id="modal-verif" hidden>
-  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="titulo-verif">
-    <div class="card-h">
-      <h2 id="titulo-verif">Verificar um sorteio</h2>
-      <button class="modal-fechar" data-fecha="modal-verif" type="button" aria-label="Fechar">✕</button>
-    </div>
-    <div class="card-b">
-      <p class="hint">Cole a lista original e a ata. A verificação recalcula a impressão digital e refaz o sorteio com os números registrados.</p>
-      <label for="verif-lista">Lista original</label>
-      <textarea id="verif-lista" spellcheck="false" style="height:96px"></textarea>
-      <label for="verif-ata">Ata (JSON)</label>
-      <textarea id="verif-ata" spellcheck="false" style="height:96px"></textarea>
-      <div class="ata-actions">
-        <button class="btn-small" id="btn-verificar" type="button">Verificar</button>
-      </div>
-      <div id="verif-res"></div>
-    </div>
-  </div>
 </div>
 
 <script>
@@ -461,19 +417,6 @@ Henrique Alves — (51) 94444-0008</textarea>
   const explicacao = $("explicacao"), painelRes = $("painel-res");
   const ALG = "FY-RS-SHA256-v1";
   const reduzMov = matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  // ---------- janelas sobrepostas ----------
-  $("btn-info").addEventListener("click", () => { $("modal-info").hidden = false; });
-  $("btn-abrir-verif").addEventListener("click", () => { $("modal-verif").hidden = false; });
-  for (const b of document.querySelectorAll(".modal-fechar")) {
-    b.addEventListener("click", () => { $(b.dataset.fecha).hidden = true; });
-  }
-  for (const m of document.querySelectorAll(".modal")) {
-    m.addEventListener("click", (e) => { if (e.target === m) m.hidden = true; });
-  }
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") for (const m of document.querySelectorAll(".modal")) m.hidden = true;
-  });
 
   // ---------- lista ----------
   function linhas(texto) {
@@ -540,7 +483,7 @@ Henrique Alves — (51) 94444-0008</textarea>
     chipDup.hidden = duplicados === 0;
     chipDup.textContent = duplicados + (duplicados === 1 ? " duplicado" : " duplicados") + (ignoraDup.checked ? " ignorados" : "");
     nVenc.max = Math.max(1, efetivos.length);
-    $("lim-venc").textContent = "até " + efetivos.length;
+    $("lim-venc").textContent = "até " + efetivos.length + " · classificados do 1º em diante";
     if (Number(nVenc.value) > efetivos.length && efetivos.length > 0) nVenc.value = efetivos.length;
     btnSortear.disabled = efetivos.length < 2;
     if (efetivos.length === 0) { hashVivo.textContent = "—"; return; }
