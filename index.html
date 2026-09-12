@@ -169,6 +169,21 @@
   .steps b { display: block; font-size: 14px; }
   .steps p { margin: 1px 0 0; color: var(--muted); font-size: 13.5px; }
 
+  #contagem { display: none; place-items: center; padding: 20px 0 10px; }
+  .anel {
+    width: 122px; height: 122px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: conic-gradient(var(--accent) 100%, var(--surface-2) 0);
+  }
+  #num-contagem {
+    width: 102px; height: 102px; border-radius: 50%;
+    background: var(--surface);
+    display: grid; place-items: center;
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 800; font-size: 46px; color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+
   #palco {
     display: none; text-align: center; padding: 26px 10px;
     font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 22px;
@@ -258,8 +273,9 @@ Henrique Alves — (51) 94444-0008</textarea>
 
         <div class="opts">
           <div class="opt">
-            <label for="n-vencedores">Vencedores</label>
+            <label for="n-vencedores">Nº de sorteados</label>
             <input type="number" id="n-vencedores" min="1" step="1" value="1">
+            <span class="hint" id="lim-venc">até 0 · classificados do 1º em diante</span>
           </div>
           <div class="opt">
             <input type="checkbox" id="ignora-dup" checked>
@@ -303,6 +319,9 @@ Henrique Alves — (51) 94444-0008</textarea>
           </li>
         </ol>
 
+        <div id="contagem" role="timer" aria-label="Contagem regressiva para o sorteio">
+          <div class="anel" id="anel"><span id="num-contagem">3</span></div>
+        </div>
         <div id="palco">Sorteando…</div>
         <ol id="vencedores"></ol>
         <div class="meta" id="res-meta"></div>
@@ -421,6 +440,8 @@ Henrique Alves — (51) 94444-0008</textarea>
     chipDup.hidden = duplicados === 0;
     chipDup.textContent = duplicados + (duplicados === 1 ? " duplicado" : " duplicados") + (ignoraDup.checked ? " ignorados" : "");
     nVenc.max = Math.max(1, efetivos.length);
+    $("lim-venc").textContent = "até " + efetivos.length + " · classificados do 1º em diante";
+    if (Number(nVenc.value) > efetivos.length && efetivos.length > 0) nVenc.value = efetivos.length;
     btnSortear.disabled = efetivos.length < 2;
     if (efetivos.length === 0) { hashVivo.textContent = "—"; return; }
     const h = await hashDaLista(efetivos);
@@ -429,7 +450,40 @@ Henrique Alves — (51) 94444-0008</textarea>
   }
   lista.addEventListener("input", atualizar);
   ignoraDup.addEventListener("change", atualizar);
+  nVenc.addEventListener("change", () => {
+    const { efetivos } = participantes(lista.value, ignoraDup.checked);
+    const n = Math.floor(Number(nVenc.value)) || 1;
+    nVenc.value = Math.min(Math.max(n, 1), Math.max(1, efetivos.length));
+  });
   $("btn-limpar").addEventListener("click", () => { lista.value = ""; atualizar(); lista.focus(); });
+
+  // ---------- contagem regressiva ----------
+  async function contagemRegressiva() {
+    const box = $("contagem"), anel = $("anel"), num = $("num-contagem");
+    box.style.display = "grid";
+    num.textContent = "3";
+    anel.style.background = "conic-gradient(var(--accent) 100%, var(--surface-2) 0)";
+    const TOTAL = 3000;
+    if (reduzMov) {
+      for (let s = 3; s >= 1; s--) {
+        num.textContent = s;
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    } else {
+      const inicio = performance.now();
+      await new Promise((res) => {
+        const tick = (t) => {
+          const resta = Math.max(0, TOTAL - (t - inicio));
+          num.textContent = Math.max(1, Math.ceil(resta / 1000));
+          anel.style.background =
+            "conic-gradient(var(--accent) " + (resta / TOTAL) * 100 + "%, var(--surface-2) 0)";
+          resta > 0 ? requestAnimationFrame(tick) : res();
+        };
+        requestAnimationFrame(tick);
+      });
+    }
+    box.style.display = "none";
+  }
 
   // ---------- sorteio ----------
   let sorteando = false;
@@ -452,9 +506,11 @@ Henrique Alves — (51) 94444-0008</textarea>
     const indices = escolher(efetivos.length, n, (max) => inteiroSeguro(max, registro));
     const quando = new Date();
 
+    await contagemRegressiva();
+
     if (!reduzMov) {
       palco.style.display = "block";
-      const fim = Date.now() + 1500;
+      const fim = Date.now() + 1100;
       await new Promise((res) => {
         const t = setInterval(() => {
           const r = new Uint32Array(1); crypto.getRandomValues(r);
