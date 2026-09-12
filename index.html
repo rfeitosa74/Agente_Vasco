@@ -245,6 +245,31 @@
     overflow-wrap: anywhere;
   }
 
+  .qr-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  #qr {
+    background: #FFFFFF; padding: 8px; border-radius: 8px;
+    width: fit-content; flex: 0 0 auto; border: 1px solid var(--line);
+  }
+  #qr img, #qr canvas { display: block; }
+  .qr-info { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .qr-info b { font-size: 13px; }
+  .qr-info code {
+    font-family: "IBM Plex Mono", monospace; font-size: 12.5px; font-weight: 600;
+    color: var(--accent); letter-spacing: .05em; overflow-wrap: anywhere;
+  }
+
+  #log-lista {
+    margin: 0; padding: 0; list-style: none;
+    display: flex; flex-direction: column; gap: 6px;
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px;
+    font-variant-numeric: tabular-nums; color: var(--muted);
+  }
+  #log-lista li {
+    background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 7px; padding: 6px 10px; overflow-wrap: anywhere;
+  }
+  #log-lista li b { color: var(--ink); font-weight: 600; }
+
   #ata-box { display: none; flex-direction: column; gap: 8px; }
   #ata { min-height: 110px; font-size: 11.5px; }
   .ata-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -323,6 +348,10 @@ Henrique Alves — (51) 94444-0008</textarea>
             <input type="checkbox" id="ignora-dup" checked>
             <label for="ignora-dup">Ignorar linhas duplicadas</label>
           </div>
+          <div class="opt">
+            <input type="checkbox" id="incluir-loc">
+            <label for="incluir-loc" title="Pede permissão ao navegador e registra as coordenadas na ata">Localização (GPS) na ata</label>
+          </div>
           <button class="btn-small" id="btn-limpar" type="button">Limpar lista</button>
         </div>
 
@@ -373,6 +402,14 @@ Henrique Alves — (51) 94444-0008</textarea>
             <button class="btn-small" id="btn-novo" type="button">Novo sorteio</button>
             <span class="copiado" id="aviso-copiado" hidden>Copiada ✓</span>
           </div>
+          <div class="qr-row">
+            <div id="qr" aria-label="QR Code de verificação do sorteio"></div>
+            <div class="qr-info">
+              <b>Código de verificação</b>
+              <code id="cod-verif">—</code>
+              <p class="hint">O QR Code carrega nº, id, data/hora e os hashes da lista e da ata — escaneie e compare com a ata guardada.</p>
+            </div>
+          </div>
           <p class="hint">Guarde a ata e a lista exata dos participantes. Juntas, elas provam o resultado.</p>
         </div>
       </div>
@@ -391,6 +428,19 @@ Henrique Alves — (51) 94444-0008</textarea>
           <div id="verif-res"></div>
         </div>
       </details>
+
+      <details id="log-sec">
+        <summary>Log de sorteios deste dispositivo</summary>
+        <div class="card-b">
+          <p class="hint">Registro local (fica só neste navegador) de cada sorteio realizado: nº, data/hora, participantes e hashes.</p>
+          <ol id="log-lista"></ol>
+          <div class="ata-actions">
+            <button class="btn-small" id="btn-copiar-log" type="button">Copiar log</button>
+            <button class="btn-small" id="btn-limpar-log" type="button">Limpar log</button>
+            <span class="copiado" id="aviso-log" hidden>Copiado ✓</span>
+          </div>
+        </div>
+      </details>
     </section>
   </main>
 
@@ -405,6 +455,7 @@ Henrique Alves — (51) 94444-0008</textarea>
   <div class="anel" id="anel"><span id="num-contagem">3</span></div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 (() => {
   "use strict";
@@ -475,6 +526,117 @@ Henrique Alves — (51) 94444-0008</textarea>
     }
     return idx.slice(0, n);
   }
+
+  // ---------- identificação, localização e hash da ata ----------
+  function idAleatorio() {
+    const b = new Uint8Array(8);
+    crypto.getRandomValues(b);
+    return [...b].map(x => x.toString(16).padStart(2, "0")).join("");
+  }
+  function proximoNumeroSorteio() {
+    try {
+      const n = (parseInt(localStorage.getItem("sorteio.contador"), 10) || 0) + 1;
+      localStorage.setItem("sorteio.contador", String(n));
+      return n;
+    } catch { return null; }
+  }
+  function obterLocalizacao() {
+    return new Promise((res) => {
+      if (!("geolocation" in navigator)) return res({ status: "indisponível neste dispositivo" });
+      navigator.geolocation.getCurrentPosition(
+        (p) => res({
+          status: "ok",
+          latitude: +p.coords.latitude.toFixed(6),
+          longitude: +p.coords.longitude.toFixed(6),
+          precisaoMetros: Math.round(p.coords.accuracy)
+        }),
+        () => res({ status: "permissão negada ou indisponível" }),
+        { timeout: 8000, maximumAge: 60000 }
+      );
+    });
+  }
+  // Hash da ata: SHA-256 do JSON da ata (2 espaços) SEM o campo hashAtaSHA256.
+  async function hashDaAta(ata) {
+    const { hashAtaSHA256, ...resto } = ata;
+    return sha256Hex(JSON.stringify(resto, null, 2));
+  }
+  function codigoVerificacao(hashAta) {
+    return (hashAta.slice(0, 20).toUpperCase().match(/.{5}/g) || []).join("-");
+  }
+  function textoQR(ata) {
+    return "SORTEIO AUDITAVEL v1\n" +
+      "n. " + (ata.numeroSorteio ?? "s/n") + " | id " + ata.idSorteio + "\n" +
+      ata.dataHora + " | " + ata.fusoHorario + "\n" +
+      "lista sha256 " + ata.hashListaSHA256 + "\n" +
+      "ata sha256 " + ata.hashAtaSHA256;
+  }
+  function desenharQR(ata) {
+    const alvo = $("qr");
+    alvo.innerHTML = "";
+    if (typeof QRCode === "undefined") {
+      alvo.textContent = "QR indisponível sem internet";
+      alvo.style.fontSize = "11px"; alvo.style.color = "#333"; alvo.style.maxWidth = "120px";
+      return;
+    }
+    new QRCode(alvo, {
+      text: textoQR(ata), width: 116, height: 116,
+      colorDark: "#000000", colorLight: "#FFFFFF",
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  }
+
+  // ---------- log local ----------
+  function lerLog() {
+    try { return JSON.parse(localStorage.getItem("sorteio.log")) || []; }
+    catch { return []; }
+  }
+  function registrarNoLog(ata) {
+    try {
+      const log = lerLog();
+      log.unshift({
+        numeroSorteio: ata.numeroSorteio, idSorteio: ata.idSorteio,
+        dataHora: ata.dataHora, dataHoraLocal: ata.dataHoraLocal,
+        totalParticipantes: ata.totalParticipantes,
+        vencedores: ata.vencedores.map(v => v.participante),
+        hashListaSHA256: ata.hashListaSHA256, hashAtaSHA256: ata.hashAtaSHA256
+      });
+      localStorage.setItem("sorteio.log", JSON.stringify(log.slice(0, 100)));
+    } catch {}
+    renderLog();
+  }
+  function renderLog() {
+    const ol = $("log-lista");
+    ol.innerHTML = "";
+    const log = lerLog();
+    if (!log.length) {
+      const li = document.createElement("li");
+      li.textContent = "Nenhum sorteio registrado ainda.";
+      ol.append(li);
+      return;
+    }
+    for (const e of log) {
+      const li = document.createElement("li");
+      const b = document.createElement("b");
+      b.textContent = "nº " + (e.numeroSorteio ?? "s/n") + " · " + (e.dataHoraLocal || e.dataHora);
+      li.append(b, document.createElement("br"));
+      li.append(e.totalParticipantes + " participantes · 1º " + (e.vencedores[0] || "—") +
+        (e.vencedores.length > 1 ? " (+" + (e.vencedores.length - 1) + ")" : ""));
+      li.append(document.createElement("br"));
+      li.append("ata " + (e.hashAtaSHA256 || "").slice(0, 16) + "… · id " + e.idSorteio);
+      ol.append(li);
+    }
+  }
+  $("btn-copiar-log").addEventListener("click", async () => {
+    const texto = JSON.stringify(lerLog(), null, 2);
+    const aviso = $("aviso-log");
+    try { await navigator.clipboard.writeText(texto); aviso.hidden = false; }
+    catch { aviso.hidden = true; }
+    setTimeout(() => { aviso.hidden = true; }, 2500);
+  });
+  $("btn-limpar-log").addEventListener("click", () => {
+    try { localStorage.removeItem("sorteio.log"); localStorage.removeItem("sorteio.contador"); } catch {}
+    renderLog();
+  });
 
   // ---------- estado vivo ----------
   async function atualizar() {
@@ -557,6 +719,9 @@ Henrique Alves — (51) 94444-0008</textarea>
     const registro = [];
     const indices = escolher(efetivos.length, n, (max) => inteiroSeguro(max, registro));
     const quando = new Date();
+    const localizacao = $("incluir-loc").checked
+      ? await obterLocalizacao()
+      : { status: "não solicitada" };
 
     await contagemRegressiva();
 
@@ -580,14 +745,23 @@ Henrique Alves — (51) 94444-0008</textarea>
 
     const ata = {
       algoritmo: ALG,
+      numeroSorteio: proximoNumeroSorteio(),
+      idSorteio: idAleatorio(),
       dataHora: quando.toISOString(),
+      dataHoraLocal: quando.toLocaleString("pt-BR"),
+      fusoHorario: Intl.DateTimeFormat().resolvedOptions().timeZone || "desconhecido",
+      localizacao,
       totalParticipantes: efetivos.length,
       duplicadosIgnorados: ignoraDup.checked,
       hashListaSHA256: hash,
       numerosAleatorios: registro,
       vencedores: indices.map((ix, i) => ({ posicao: i + 1, linha: ix + 1, participante: efetivos[ix] }))
     };
+    ata.hashAtaSHA256 = await hashDaAta(ata);
     ataEl.value = JSON.stringify(ata, null, 2);
+    $("cod-verif").textContent = codigoVerificacao(ata.hashAtaSHA256);
+    desenharQR(ata);
+    registrarNoLog(ata);
     ataBox.style.display = "flex";
     sorteando = false; btnSortear.disabled = false;
   });
@@ -635,6 +809,21 @@ Henrique Alves — (51) 94444-0008</textarea>
     const itens = [];
     let ok = true;
 
+    if (ata.numeroSorteio !== undefined || ata.idSorteio) {
+      itens.push("Sorteio nº " + (ata.numeroSorteio ?? "s/n") + " · id " + (ata.idSorteio || "—") +
+        " · " + (ata.dataHoraLocal || ata.dataHora || "") +
+        (ata.fusoHorario ? " (" + ata.fusoHorario + ")" : ""));
+    }
+    if (typeof ata.hashAtaSHA256 === "string") {
+      const hAta = await hashDaAta(ata);
+      if (hAta === ata.hashAtaSHA256) {
+        itens.push("Hash da ata confere — código " + codigoVerificacao(hAta) + " (compare com o QR Code).");
+      } else {
+        ok = false;
+        itens.push("A ata foi ALTERADA — o hash interno não confere.");
+      }
+    }
+
     if (efetivos.length !== ata.totalParticipantes) {
       ok = false;
       itens.push("Total de participantes difere: lista tem " + efetivos.length + ", ata registra " + ata.totalParticipantes + ".");
@@ -671,6 +860,7 @@ Henrique Alves — (51) 94444-0008</textarea>
     mostra(ok, itens);
   });
 
+  renderLog();
   atualizar();
 })();
 </script>
