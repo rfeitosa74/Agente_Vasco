@@ -16,6 +16,7 @@
     --gold-soft: #F7EED7;
     --danger: #A93B2A;
     --danger-soft: #F7E5E1;
+    --scrim: rgba(20, 33, 27, .58);
     --shadow: 0 1px 2px rgba(20, 33, 27, .06), 0 8px 24px rgba(20, 33, 27, .07);
   }
   @media (prefers-color-scheme: dark) {
@@ -34,6 +35,7 @@
       --gold-soft: #33290F;
       --danger: #E07A66;
       --danger-soft: #3A1F19;
+      --scrim: rgba(4, 9, 7, .72);
       --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 24px rgba(0, 0, 0, .35);
     }
   }
@@ -52,6 +54,7 @@
     --gold-soft: #33290F;
     --danger: #E07A66;
     --danger-soft: #3A1F19;
+    --scrim: rgba(4, 9, 7, .72);
     --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 24px rgba(0, 0, 0, .35);
   }
 
@@ -169,25 +172,29 @@
   .steps b { display: block; font-size: 14px; }
   .steps p { margin: 1px 0 0; color: var(--muted); font-size: 13.5px; }
 
-  #contagem { display: none; place-items: center; padding: 20px 0 10px; }
+  #overlay-contagem {
+    display: none; position: fixed; inset: 0; z-index: 100;
+    place-items: center;
+    background: var(--scrim);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+  }
   .anel {
-    width: 122px; height: 122px; border-radius: 50%;
+    width: min(64vw, 260px); height: min(64vw, 260px);
+    border-radius: 50%;
     display: grid; place-items: center;
-    background: conic-gradient(var(--accent) 100%, var(--surface-2) 0);
+    background: conic-gradient(var(--accent) 100%, var(--line) 0);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, .35);
   }
   #num-contagem {
-    width: 102px; height: 102px; border-radius: 50%;
+    width: calc(100% - 22px); height: calc(100% - 22px);
+    border-radius: 50%;
     background: var(--surface);
     display: grid; place-items: center;
     font-family: "Bricolage Grotesque", sans-serif;
-    font-weight: 800; font-size: 46px; color: var(--accent);
+    font-weight: 800; font-size: clamp(72px, 26vw, 118px);
+    color: var(--accent);
     font-variant-numeric: tabular-nums;
-  }
-
-  #palco {
-    display: none; text-align: center; padding: 26px 10px;
-    font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 22px;
-    overflow-wrap: anywhere;
   }
   #vencedores { display: none; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
   #vencedores li {
@@ -319,10 +326,6 @@ Henrique Alves — (51) 94444-0008</textarea>
           </li>
         </ol>
 
-        <div id="contagem" role="timer" aria-label="Contagem regressiva para o sorteio">
-          <div class="anel" id="anel"><span id="num-contagem">3</span></div>
-        </div>
-        <div id="palco">Sorteando…</div>
         <ol id="vencedores"></ol>
         <div class="meta" id="res-meta"></div>
 
@@ -362,6 +365,10 @@ Henrique Alves — (51) 94444-0008</textarea>
   </footer>
 </div>
 
+<div id="overlay-contagem" role="timer" aria-label="Contagem regressiva para o sorteio">
+  <div class="anel" id="anel"><span id="num-contagem">3</span></div>
+</div>
+
 <script>
 (() => {
   "use strict";
@@ -369,7 +376,7 @@ Henrique Alves — (51) 94444-0008</textarea>
   const lista = $("lista"), chipTotal = $("chip-total"), chipDup = $("chip-dup");
   const nVenc = $("n-vencedores"), ignoraDup = $("ignora-dup");
   const hashVivo = $("hash-vivo"), btnSortear = $("btn-sortear");
-  const palco = $("palco"), vencedoresEl = $("vencedores"), resMeta = $("res-meta");
+  const vencedoresEl = $("vencedores"), resMeta = $("res-meta");
   const ataBox = $("ata-box"), ataEl = $("ata"), resTitulo = $("res-titulo");
   const explicacao = $("explicacao");
   const ALG = "FY-RS-SHA256-v1";
@@ -459,10 +466,10 @@ Henrique Alves — (51) 94444-0008</textarea>
 
   // ---------- contagem regressiva ----------
   async function contagemRegressiva() {
-    const box = $("contagem"), anel = $("anel"), num = $("num-contagem");
+    const box = $("overlay-contagem"), anel = $("anel"), num = $("num-contagem");
     box.style.display = "grid";
     num.textContent = "3";
-    anel.style.background = "conic-gradient(var(--accent) 100%, var(--surface-2) 0)";
+    anel.style.background = "conic-gradient(var(--accent) 100%, var(--line) 0)";
     const TOTAL = 3000;
     if (reduzMov) {
       for (let s = 3; s >= 1; s--) {
@@ -471,12 +478,21 @@ Henrique Alves — (51) 94444-0008</textarea>
       }
     } else {
       const inicio = performance.now();
+      let segAtual = 3;
       await new Promise((res) => {
         const tick = (t) => {
           const resta = Math.max(0, TOTAL - (t - inicio));
-          num.textContent = Math.max(1, Math.ceil(resta / 1000));
+          const seg = Math.max(1, Math.ceil(resta / 1000));
+          if (seg !== segAtual) {
+            segAtual = seg;
+            num.textContent = seg;
+            num.animate(
+              [{ transform: "scale(1.45)", opacity: .3 }, { transform: "scale(1)", opacity: 1 }],
+              { duration: 380, easing: "cubic-bezier(.2,.8,.3,1)" }
+            );
+          }
           anel.style.background =
-            "conic-gradient(var(--accent) " + (resta / TOTAL) * 100 + "%, var(--surface-2) 0)";
+            "conic-gradient(var(--accent) " + (resta / TOTAL) * 100 + "%, var(--line) 0)";
           resta > 0 ? requestAnimationFrame(tick) : res();
         };
         requestAnimationFrame(tick);
@@ -507,19 +523,6 @@ Henrique Alves — (51) 94444-0008</textarea>
     const quando = new Date();
 
     await contagemRegressiva();
-
-    if (!reduzMov) {
-      palco.style.display = "block";
-      const fim = Date.now() + 1100;
-      await new Promise((res) => {
-        const t = setInterval(() => {
-          const r = new Uint32Array(1); crypto.getRandomValues(r);
-          palco.textContent = efetivos[r[0] % efetivos.length];
-          if (Date.now() >= fim) { clearInterval(t); res(); }
-        }, 70);
-      });
-      palco.style.display = "none";
-    }
 
     vencedoresEl.style.display = "flex";
     for (let i = 0; i < indices.length; i++) {
