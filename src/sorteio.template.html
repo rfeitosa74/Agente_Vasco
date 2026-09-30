@@ -1,0 +1,1309 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="@@CSP@@">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Sorteio SCDP</title>
+<style>
+/*@@FONTES@@*/
+  :root {
+    --navy: #25315C;
+    --navy-barra: #2B3868;
+    --navy-fundo: #121E42;
+    --painel: rgba(18, 30, 66, .93);
+    --campo: #0E1838;
+    --linha: #33427A;
+    --texto: #FFFFFF;
+    --texto-2: #C3CBE3;
+    --amarelo: #FCC800;
+    --amarelo-forte: #FFD633;
+    --ok: #57D48F;
+    --ok-fundo: rgba(87, 212, 143, .12);
+    --falha: #FF8570;
+    --falha-fundo: rgba(255, 133, 112, .12);
+    --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+    --corpo: "Barlow", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    height: 100vh; height: 100dvh;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    background-color: var(--navy);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='180'%3E%3Cg fill='%232B3868'%3E%3Crect x='5' y='8' width='9' height='54' rx='4.5'/%3E%3Crect x='5' y='74' width='9' height='30' rx='4.5'/%3E%3Crect x='5' y='116' width='9' height='56' rx='4.5'/%3E%3Crect x='25' y='22' width='9' height='70' rx='4.5'/%3E%3Crect x='25' y='104' width='9' height='34' rx='4.5'/%3E%3Crect x='25' y='150' width='9' height='24' rx='4.5'/%3E%3Crect x='45' y='4' width='9' height='26' rx='4.5'/%3E%3Crect x='45' y='42' width='9' height='62' rx='4.5'/%3E%3Crect x='45' y='116' width='9' height='48' rx='4.5'/%3E%3Crect x='65' y='14' width='9' height='40' rx='4.5'/%3E%3Crect x='65' y='66' width='9' height='78' rx='4.5'/%3E%3Crect x='65' y='156' width='9' height='18' rx='4.5'/%3E%3Crect x='85' y='6' width='9' height='64' rx='4.5'/%3E%3Crect x='85' y='82' width='9' height='36' rx='4.5'/%3E%3Crect x='85' y='130' width='9' height='40' rx='4.5'/%3E%3Crect x='105' y='30' width='9' height='48' rx='4.5'/%3E%3Crect x='105' y='90' width='9' height='20' rx='4.5'/%3E%3Crect x='105' y='122' width='9' height='50' rx='4.5'/%3E%3C/g%3E%3C/svg%3E");
+    color: var(--texto);
+    font-family: var(--corpo);
+    font-size: 15px;
+    line-height: 1.45;
+  }
+  .wrap {
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column;
+    width: 100%; max-width: 1180px; margin-inline: auto;
+    padding-inline: clamp(16px, 3vw, 36px);
+    padding-block: 12px 12px;
+  }
+
+  /* ---------- cabeçalho (capa do workshop) ---------- */
+  .topo {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+    padding-block: 0 12px; flex: 0 0 auto;
+  }
+  .selo {
+    background: var(--amarelo); color: var(--navy-fundo);
+    font-family: var(--display); font-weight: 800; text-transform: uppercase;
+    font-size: 21px; line-height: .88; letter-spacing: .01em;
+    padding: 7px 9px 6px; display: flex; flex-direction: column; flex: 0 0 auto;
+  }
+  .titulo { flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .evento {
+    margin: 0; font-family: var(--display); font-weight: 600;
+    font-size: 14.5px; line-height: 1.15; letter-spacing: .045em; text-transform: uppercase;
+    text-wrap: balance;
+  }
+  .evento .sep { color: var(--amarelo); padding-inline: 2px; }
+  h1 {
+    margin: 0; font-family: var(--display); font-weight: 800;
+    font-size: clamp(23px, 2.9vw, 30px); line-height: 1; letter-spacing: .03em;
+    text-transform: uppercase; color: var(--amarelo);
+  }
+  .status-base {
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    background: var(--campo); color: var(--texto-2);
+    border: 1px solid var(--linha); border-radius: 999px;
+    padding: 5px 12px; cursor: pointer; white-space: nowrap;
+  }
+  .status-base.ok { color: var(--ok); border-color: rgba(87, 212, 143, .45); }
+  .status-base.falha { color: var(--falha); border-color: rgba(255, 133, 112, .6); background: var(--falha-fundo); }
+
+  /* ---------- painéis ---------- */
+  main {
+    flex: 1; min-height: 0;
+    display: grid; grid-template-columns: 1.05fr 1fr; gap: 16px;
+    align-items: stretch;
+  }
+  .card {
+    background: var(--painel);
+    border: 1px solid var(--linha);
+    border-radius: 6px;
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  .card-h {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    padding: 12px 18px 0; flex: 0 0 auto;
+  }
+  .card-h h2 {
+    margin: 0; flex: 1 1 auto;
+    font-family: var(--display); font-weight: 700; font-size: 19px;
+    letter-spacing: .06em; text-transform: uppercase; color: var(--amarelo);
+  }
+  .card-b {
+    padding: 10px 18px 14px; display: flex; flex-direction: column; gap: 10px;
+    flex: 1; min-height: 0; overflow-y: auto;
+  }
+
+  .chip {
+    font-family: var(--mono); font-size: 11.5px; font-weight: 500;
+    padding: 2px 9px; border-radius: 999px; white-space: nowrap;
+    background: var(--campo); color: var(--texto-2); border: 1px solid var(--linha);
+    font-variant-numeric: tabular-nums;
+  }
+  .chip.dup { color: var(--falha); border-color: rgba(255, 133, 112, .5); }
+  .chip.bloq { color: var(--amarelo); border-color: rgba(252, 200, 0, .55); }
+
+  label { font-weight: 600; font-size: 13.5px; }
+  .hint { color: var(--texto-2); font-size: 13px; margin: 0; }
+  .hint b { color: var(--texto); }
+
+  textarea {
+    width: 100%; resize: none;
+    background: var(--campo); color: var(--texto);
+    border: 1px solid var(--linha); border-radius: 4px;
+    padding: 9px 12px;
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.65;
+  }
+  #lista { flex: 1; min-height: 70px; }
+  textarea:focus-visible, input:focus-visible, button:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--amarelo); outline-offset: 2px;
+  }
+
+  .opts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; flex: 0 0 auto; }
+  .opt { display: flex; align-items: center; gap: 8px; }
+  input[type="number"] {
+    width: 74px; background: var(--campo); color: var(--texto);
+    border: 1px solid var(--linha); border-radius: 4px; padding: 6px 10px;
+    font-family: var(--mono); font-size: 14px;
+  }
+  input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--amarelo); }
+
+  .fingerprint {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px;
+    border-top: 1px dashed var(--linha); padding-top: 10px;
+    color: var(--texto-2); font-size: 12.5px; flex: 0 0 auto;
+  }
+  code, .mono { font-family: var(--mono); }
+  .fingerprint code {
+    font-size: 12px; font-weight: 600; color: var(--amarelo);
+    letter-spacing: .04em; overflow-wrap: anywhere;
+  }
+
+  button {
+    font: inherit; font-weight: 600; cursor: pointer;
+    border-radius: 4px; border: 1px solid var(--linha);
+    background: transparent; color: var(--texto);
+    padding: 7px 13px;
+  }
+  button:hover { border-color: var(--amarelo); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary {
+    background: var(--amarelo); border-color: var(--amarelo); color: var(--navy-fundo);
+    font-family: var(--display); font-weight: 800; text-transform: uppercase;
+    font-size: 21px; letter-spacing: .14em; padding: 10px 18px; width: 100%; flex: 0 0 auto;
+  }
+  .btn-primary:hover { background: var(--amarelo-forte); border-color: var(--amarelo-forte); }
+  .btn-primary:disabled:hover { background: var(--amarelo); }
+  .btn-small { font-size: 13px; padding: 5px 11px; }
+  .btn-perigo:hover { border-color: var(--falha); color: var(--falha); }
+
+  /* ---------- explicação ---------- */
+  .passos { display: flex; flex-direction: column; gap: 11px; margin: 0; padding: 0; list-style: none; }
+  .passos li { display: flex; gap: 12px; }
+  .passos li::before {
+    content: ""; flex: 0 0 auto; width: 8px; height: 8px; margin-top: 7px;
+    background: var(--amarelo); transform: rotate(45deg);
+  }
+  .passos b { display: block; font-size: 14.5px; }
+  .passos p { margin: 1px 0 0; color: var(--texto-2); font-size: 13.5px; }
+
+  /* ---------- resultado ---------- */
+  #vencedores { display: none; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  #vencedores li {
+    display: flex; align-items: baseline; gap: 12px;
+    background: var(--campo); border: 1px solid var(--linha);
+    border-radius: 4px; padding: 9px 14px;
+    overflow-wrap: anywhere;
+  }
+  #vencedores li .pos {
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    color: var(--texto-2); flex: 0 0 auto; font-variant-numeric: tabular-nums;
+  }
+  #vencedores li .nome { font-weight: 600; font-size: 15.5px; }
+  #vencedores li.ouro { background: var(--amarelo); border-color: var(--amarelo); color: var(--navy-fundo); }
+  #vencedores li.ouro .pos { color: var(--navy-fundo); }
+  #vencedores li.ouro .nome {
+    font-family: var(--display); font-weight: 800; font-size: 22px;
+    letter-spacing: .02em; text-transform: uppercase;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    #vencedores li { animation: entrar .35s ease both; }
+    @keyframes entrar { from { opacity: 0; transform: translateY(6px); } }
+  }
+  .meta {
+    display: none; color: var(--texto-2); font-size: 12px;
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+  .caixa-msg { border-radius: 4px; padding: 9px 13px; font-size: 13.5px; overflow-wrap: anywhere; }
+  .caixa-msg.ok { background: var(--ok-fundo); color: var(--ok); }
+  .caixa-msg.falha { background: var(--falha-fundo); color: var(--falha); }
+  .caixa-msg ul { margin: 5px 0 0; padding-left: 18px; }
+
+  #ata-box { display: none; flex-direction: column; gap: 8px; }
+  #ata { min-height: 110px; font-size: 11.5px; }
+  .acoes { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .copiado { color: var(--ok); font-size: 13px; font-weight: 600; }
+
+  .qr-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  #qr {
+    width: 116px; height: 116px; flex: 0 0 auto;
+    background: #FFFFFF; border-radius: 4px; image-rendering: pixelated;
+  }
+  .qr-info { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .qr-info b { font-size: 13px; }
+  .qr-info code {
+    font-size: 13px; font-weight: 600; color: var(--amarelo);
+    letter-spacing: .06em; overflow-wrap: anywhere;
+  }
+
+  /* ---------- seções recolhíveis ---------- */
+  details { border-top: 1px solid var(--linha); flex: 0 0 auto; }
+  details .card-b { padding-top: 4px; flex: none; max-height: 44vh; overflow-y: auto; }
+  summary {
+    cursor: pointer; padding: 11px 18px;
+    font-family: var(--display); font-weight: 700; font-size: 16.5px;
+    letter-spacing: .06em; text-transform: uppercase;
+    list-style: none; display: flex; align-items: center; gap: 9px;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸"; color: var(--amarelo); transition: transform .15s; }
+  details[open] summary::before { transform: rotate(90deg); }
+  .summary-n { font-family: var(--mono); font-size: 12px; color: var(--amarelo); letter-spacing: 0; }
+
+  #bloq-sec { border: 1px dashed rgba(252, 200, 0, .45); border-radius: 4px; }
+  #bloq-sec summary { font-size: 14px; padding: 6px 12px; color: var(--amarelo); }
+  #bloq-sec .card-b { max-height: 22vh; padding: 2px 12px 10px; }
+
+  .lista-mono {
+    margin: 0; padding: 0; list-style: none;
+    display: flex; flex-direction: column; gap: 6px;
+    font-family: var(--mono); font-size: 11.5px;
+    font-variant-numeric: tabular-nums; color: var(--texto-2);
+  }
+  .lista-mono li {
+    background: var(--campo); border: 1px solid var(--linha);
+    border-radius: 4px; padding: 6px 10px; overflow-wrap: anywhere;
+  }
+  .lista-mono li b { color: var(--texto); font-weight: 600; }
+  .ganhador { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 4px; }
+  .ganhador .quem { color: var(--texto); flex: 1 1 160px; min-width: 0; }
+  .ganhador .liberado { color: var(--texto-2); text-decoration: line-through; }
+  .ganhador button { font-size: 11.5px; padding: 2px 8px; }
+  .tag-lib { color: var(--ok); font-size: 11px; }
+
+  /* ---------- faixa inferior (capa) ---------- */
+  .faixa {
+    flex: 0 0 auto; background: var(--navy-fundo);
+    border-top: 1px solid rgba(255, 255, 255, .06);
+    padding-inline: clamp(16px, 3vw, 36px); padding-block: 7px;
+  }
+  .faixa-in {
+    max-width: 1180px; margin-inline: auto;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px 22px;
+  }
+  .diad { display: flex; align-items: center; gap: 6px; }
+  .diad b { font-family: var(--corpo); font-weight: 600; font-size: 17px; letter-spacing: .02em; }
+  .diad small { font-size: 9.5px; line-height: 1.1; color: var(--texto-2); }
+  .prf { font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: .03em; line-height: 1; }
+  .nota { margin-left: auto; font-size: 11.5px; color: var(--texto-2); }
+
+  /* ---------- contagem regressiva ---------- */
+  #overlay-contagem {
+    position: fixed; inset: 0; z-index: 100;
+    display: grid; place-items: center; align-content: center; gap: 16px;
+    background: rgba(12, 20, 46, .88);
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  }
+  .relogio { position: relative; width: min(72vw, 52vh, 310px); aspect-ratio: 1 / 1; max-width: 100%; }
+  .relogio svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  .disco { fill: var(--navy-fundo); }
+  .globo { fill: none; stroke: rgba(252, 200, 0, .17); stroke-width: 1.2; }
+  .anel-fundo { fill: none; stroke: rgba(252, 200, 0, .16); stroke-width: 6; }
+  .anel-prog { fill: none; stroke: var(--amarelo); stroke-width: 6; stroke-linecap: round; }
+  #aviao path { fill: var(--amarelo); }
+  #num-contagem {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    font-family: var(--display); font-weight: 800; line-height: 1;
+    font-size: min(30vw, 22vh, 150px); color: var(--amarelo);
+    font-variant-numeric: tabular-nums;
+  }
+  .contagem-legenda {
+    margin: 0; font-family: var(--display); font-weight: 700;
+    font-size: 16px; letter-spacing: .32em; text-transform: uppercase;
+  }
+
+  #btn-fechar-res { display: none; }
+
+  @media (max-width: 700px), (max-height: 620px) {
+    .evento { font-size: 12.5px; }
+    .nota { display: none; }
+  }
+  @media (max-height: 560px) { .faixa { display: none; } }
+
+  /* Telas estreitas: uma coluna; o painel da direita abre em tela cheia */
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; }
+    #painel-res { display: none; }
+    #painel-res.aberto {
+      display: flex; position: fixed; inset: 0; z-index: 80;
+      border-radius: 0; border: none; background: var(--navy-fundo);
+      padding-inline: 8px; padding-block: 6px 10px;
+    }
+    #btn-fechar-res { display: inline-block; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="topo">
+    <div class="selo" aria-hidden="true"><span>Work</span><span>Shop</span></div>
+    <div class="titulo">
+      <p class="evento">I Workshop do Setor de Concessão de Diárias e Passagens<span class="sep">|</span>SCDP</p>
+      <h1>Sorteio auditável</h1>
+    </div>
+    <button class="status-base" id="status-base" type="button" title="Ver a base de sorteados">Abrindo base…</button>
+  </header>
+
+  <main>
+    <section class="card" aria-label="Participantes">
+      <div class="card-h">
+        <h2>Participantes</h2>
+        <span class="chip" id="chip-total">0 participantes</span>
+        <span class="chip dup" id="chip-dup" hidden>0 duplicados</span>
+        <span class="chip bloq" id="chip-bloq" hidden>0 já sorteados</span>
+      </div>
+      <div class="card-b">
+        <p class="hint">Um participante por linha — só o nome, ou nome + e-mail + telefone. Quem <b>já foi sorteado</b> fica fora automaticamente, mesmo que apareça de novo na lista. A lista abaixo é um <b>exemplo</b>: apague e cole a sua.</p>
+        <textarea id="lista" spellcheck="false" maxlength="2000000" aria-label="Lista de participantes, um por linha">Ana Souza — ana.souza@exemplo.com — (61) 98888-0001
+Bruno Lima — bruno.lima@exemplo.com — (21) 97777-0002
+Carla Mendes — carla.mendes@exemplo.com
+Diego Ferreira — (31) 96666-0004
+Elisa Rocha — elisa.rocha@exemplo.com — (41) 95555-0005
+Fábio Torres
+Gabriela Nunes — gabi.nunes@exemplo.com
+Henrique Alves — (51) 94444-0008</textarea>
+
+        <details id="bloq-sec" hidden>
+          <summary>Fora deste sorteio — já sorteados</summary>
+          <div class="card-b">
+            <ol class="lista-mono" id="bloq-lista"></ol>
+          </div>
+        </details>
+
+        <div class="opts">
+          <div class="opt">
+            <label for="n-vencedores">Nº de sorteados</label>
+            <input type="number" id="n-vencedores" min="1" step="1" value="1">
+            <span class="hint" id="lim-venc">até 0 · classificados do 1º em diante</span>
+          </div>
+          <div class="opt">
+            <input type="checkbox" id="ignora-dup" checked>
+            <label for="ignora-dup">Ignorar duplicados</label>
+          </div>
+          <div class="opt">
+            <input type="checkbox" id="incluir-loc">
+            <label for="incluir-loc" title="Pede permissão ao navegador e registra as coordenadas na ata">Localização (GPS) na ata</label>
+          </div>
+          <button class="btn-small" id="btn-limpar" type="button">Limpar lista</button>
+        </div>
+
+        <div class="fingerprint">
+          <span>Impressão digital dos elegíveis (SHA-256):</span>
+          <code id="hash-vivo">—</code>
+        </div>
+
+        <button class="btn-primary" id="btn-sortear" type="button" disabled>Sortear</button>
+      </div>
+    </section>
+
+    <section class="card" id="painel-res" aria-label="Resultado" aria-live="polite">
+      <div class="card-h">
+        <h2 id="res-titulo">Como o sorteio é protegido</h2>
+        <button class="btn-small" id="btn-fechar-res" type="button">‹ Voltar à lista</button>
+      </div>
+      <div class="card-b">
+        <ul class="passos" id="explicacao">
+          <li><div>
+            <b>Aleatoriedade do sistema operacional</b>
+            <p>Os números vêm de <span class="mono">crypto.getRandomValues</span>, o gerador criptográfico do dispositivo — o mesmo usado em chaves de segurança. Nada de <span class="mono">Math.random()</span>.</p>
+          </div></li>
+          <li><div>
+            <b>Sem viés de posição</b>
+            <p>Rejection sampling elimina o viés de módulo e o embaralhamento Fisher–Yates dá a cada participante exatamente a mesma chance, do topo ao fim da lista.</p>
+          </div></li>
+          <li><div>
+            <b>Quem já ganhou não concorre de novo</b>
+            <p>Cada sorteado é gravado numa base local encadeada por hashes. Se reaparecer na lista — com outra grafia, só o e-mail ou só o telefone — fica fora dos próximos sorteios.</p>
+          </div></li>
+          <li><div>
+            <b>Ata verificável</b>
+            <p>Cada sorteio gera uma ata com nº, data, hashes e os números usados, e é gravado na base antes da revelação. Com a ata + a lista, qualquer pessoa reproduz o resultado em “Verificar”.</p>
+          </div></li>
+        </ul>
+
+        <div class="caixa-msg falha" id="res-erro" hidden></div>
+        <ol id="vencedores"></ol>
+        <div class="meta" id="res-meta"></div>
+
+        <div id="ata-box">
+          <label for="ata">Ata do sorteio</label>
+          <textarea id="ata" readonly spellcheck="false"></textarea>
+          <div class="acoes">
+            <button class="btn-small" id="btn-copiar-ata" type="button">Copiar ata</button>
+            <button class="btn-small" id="btn-baixar-ata" type="button">Baixar ata</button>
+            <button class="btn-small" id="btn-novo" type="button">Novo sorteio</button>
+            <span class="copiado" id="aviso-copiado" hidden>Copiada ✓</span>
+          </div>
+          <div class="qr-row">
+            <canvas id="qr" width="116" height="116" aria-label="QR Code de verificação do sorteio"></canvas>
+            <div class="qr-info">
+              <b>Código de verificação</b>
+              <code id="cod-verif">—</code>
+              <p class="hint">O QR Code traz nº, id, data/hora, registro na base e os hashes da lista e da ata — escaneie e compare com a ata guardada.</p>
+            </div>
+          </div>
+          <p class="hint">Guarde a ata e a lista exata dos participantes. Juntas, elas provam o resultado.</p>
+        </div>
+      </div>
+
+      <details id="verificar">
+        <summary>Verificar um sorteio</summary>
+        <div class="card-b">
+          <p class="hint">Cole a lista original de participantes e a ata. A verificação confere os hashes, as exclusões e refaz o sorteio com os números registrados.</p>
+          <label for="verif-lista">Lista original</label>
+          <textarea id="verif-lista" spellcheck="false" style="min-height:90px"></textarea>
+          <label for="verif-ata">Ata (JSON)</label>
+          <textarea id="verif-ata" spellcheck="false" style="min-height:90px"></textarea>
+          <div class="acoes">
+            <button class="btn-small" id="btn-verificar" type="button">Verificar</button>
+          </div>
+          <div class="caixa-msg" id="verif-res" hidden></div>
+        </div>
+      </details>
+
+      <details id="base-sec">
+        <summary>Base de sorteados e log <span class="summary-n" id="base-resumo"></span></summary>
+        <div class="card-b">
+          <p class="hint" id="base-status">Abrindo base…</p>
+          <div class="caixa-msg" id="base-msg" hidden></div>
+          <div class="acoes">
+            <button class="btn-small" id="btn-exportar" type="button">Exportar backup</button>
+            <button class="btn-small" id="btn-importar" type="button">Importar backup</button>
+            <input type="file" id="arquivo-import" accept="application/json,.json" hidden>
+            <button class="btn-small" id="btn-copiar-log" type="button">Copiar log</button>
+            <button class="btn-small btn-perigo" id="btn-zerar" type="button">Zerar base</button>
+            <span class="copiado" id="aviso-log" hidden>Copiado ✓</span>
+          </div>
+          <ol class="lista-mono" id="base-log"></ol>
+        </div>
+      </details>
+    </section>
+  </main>
+</div>
+
+<footer class="faixa">
+  <div class="faixa-in">
+    <span class="diad"><b>DIAD</b><small>Diretoria de<br>Administração e Logística</small></span>
+    <span class="prf">PRF</span>
+    <span class="nota">Funciona offline — nada sai deste computador. Algoritmo <code>FY-RS-SHA256-v2</code>.</span>
+  </div>
+</footer>
+
+<div id="overlay-contagem" role="timer" aria-label="Contagem regressiva para o sorteio" hidden>
+  <div class="relogio">
+    <svg viewBox="0 0 200 200" aria-hidden="true">
+      <circle class="disco" cx="100" cy="100" r="96"/>
+      <circle class="globo" cx="100" cy="100" r="66"/>
+      <ellipse class="globo" cx="100" cy="100" rx="28" ry="66"/>
+      <ellipse class="globo" cx="100" cy="100" rx="66" ry="24"/>
+      <line class="globo" x1="34" y1="100" x2="166" y2="100"/>
+      <circle class="anel-fundo" cx="100" cy="100" r="88"/>
+      <circle class="anel-prog" id="anel-prog" cx="100" cy="100" r="88"
+              stroke-dasharray="552.92 552.92" stroke-dashoffset="552.92"
+              transform="rotate(-90 100 100)"/>
+      <g id="aviao">
+        <path transform="translate(100 12) rotate(90) scale(1.5) translate(-12 -12)"
+              d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
+      </g>
+    </svg>
+    <span id="num-contagem">3</span>
+  </div>
+  <p class="contagem-legenda">Sorteando</p>
+</div>
+
+<script>/*@@QRCODE@@*/</script>
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const ALG = "FY-RS-SHA256-v2";
+  const ALG_V1 = "FY-RS-SHA256-v1";
+  const MAX_LINHAS = 20000;
+  const MAX_NUMEROS = 250000;
+  const MAX_REGISTROS = 100000;
+  const FORMATO_BACKUP = "sorteio-scdp-base";
+  const CIRCUNF = 552.92;
+  const reduzMov = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const lista = $("lista"), nVenc = $("n-vencedores"), ignoraDup = $("ignora-dup");
+  const btnSortear = $("btn-sortear"), vencedoresEl = $("vencedores"), resMeta = $("res-meta");
+  const ataBox = $("ata-box"), ataEl = $("ata"), resTitulo = $("res-titulo");
+  const explicacao = $("explicacao"), painelRes = $("painel-res"), resErro = $("res-erro");
+
+  // ---------- utilidades ----------
+  const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+  function hex(buf) { return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join(""); }
+  async function sha256Hex(texto) {
+    return hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(texto)));
+  }
+  function idAleatorio(bytes) { const b = new Uint8Array(bytes); crypto.getRandomValues(b); return hex(b); }
+  // JSON com chaves ordenadas: o hash não depende da ordem dos campos.
+  function canonico(v) {
+    if (Array.isArray(v)) return "[" + v.map(canonico).join(",") + "]";
+    if (v && typeof v === "object") {
+      return "{" + Object.keys(v).sort().map((k) => JSON.stringify(k) + ":" + canonico(v[k])).join(",") + "}";
+    }
+    return JSON.stringify(v === undefined ? null : v);
+  }
+  function el(tag, cls, texto) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (texto !== undefined) e.textContent = texto;
+    return e;
+  }
+  function piscar(id) { const a = $(id); a.hidden = false; setTimeout(() => { a.hidden = true; }, 2500); }
+  async function copiar(texto) {
+    try { await navigator.clipboard.writeText(texto); return true; }
+    catch {
+      const t = el("textarea"); t.value = texto; document.body.append(t); t.select();
+      let ok = false; try { ok = document.execCommand("copy"); } catch {}
+      t.remove(); return ok;
+    }
+  }
+  function baixar(nome, texto) {
+    const url = URL.createObjectURL(new Blob([texto], { type: "application/json" }));
+    const a = el("a"); a.href = url; a.download = nome;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+  function carimbo(d) {
+    const p = (n) => String(n).padStart(2, "0");
+    return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + "-" + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());
+  }
+  const dataLocal = (iso) => { const d = new Date(iso); return isNaN(d) ? String(iso) : d.toLocaleString("pt-BR"); };
+  const plural = (n, s, p) => n + " " + (n === 1 ? s : p);
+
+  // ---------- identidade: quem é "a mesma pessoa" ----------
+  function normalizar(s) {
+    return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+  }
+  const RE_EMAIL = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
+  const RE_NUM = /\+?\d[\d\s().\/-]{6,}\d/g;
+  function chavesIdentidade(linha) {
+    const emails = [...new Set((linha.match(RE_EMAIL) || []).map((e) => e.toLowerCase()))];
+    let resto = linha.replace(RE_EMAIL, " ");
+    const numeros = new Set();
+    for (const m of resto.match(RE_NUM) || []) {
+      let d = m.replace(/\D/g, "");
+      if (d.length >= 12 && d.startsWith("55")) d = d.slice(2);
+      if (d.length >= 8) numeros.add(d);
+    }
+    resto = resto.replace(RE_NUM, " ");
+    const nome = normalizar(resto.replace(/[—–|;,:\/\\()[\]<>"'•·\t_-]+/g, " "));
+    return { linha: normalizar(linha), nome: nome.length >= 3 ? nome : "", emails, numeros: [...numeros] };
+  }
+  function novoIndice() { return { linha: new Map(), email: new Map(), num: new Map(), nome: new Map() }; }
+  function indexar(ix, ch, valor) {
+    if (!ix.linha.has(ch.linha)) ix.linha.set(ch.linha, valor);
+    for (const e of ch.emails) if (!ix.email.has(e)) ix.email.set(e, valor);
+    for (const n of ch.numeros) if (!ix.num.has(n)) ix.num.set(n, valor);
+    if (ch.nome && !ix.nome.has(ch.nome)) ix.nome.set(ch.nome, valor);
+  }
+  function procurar(ix, ch) {
+    if (ix.linha.has(ch.linha)) return { valor: ix.linha.get(ch.linha), motivo: "linha idêntica" };
+    for (const e of ch.emails) if (ix.email.has(e)) return { valor: ix.email.get(e), motivo: "mesmo e-mail" };
+    for (const n of ch.numeros) if (ix.num.has(n)) return { valor: ix.num.get(n), motivo: "mesmo telefone/documento" };
+    if (ch.nome && ix.nome.has(ch.nome)) return { valor: ix.nome.get(ch.nome), motivo: "mesmo nome" };
+    return null;
+  }
+
+  // ---------- lista ----------
+  function linhas(texto) { return texto.split(/\r?\n/).map((l) => l.trim()).filter(Boolean); }
+  function deduplicar(ls, versao) {
+    const efetivos = [];
+    if (versao === ALG_V1) {
+      const vistos = new Set();
+      for (const l of ls) { const k = l.toLowerCase(); if (!vistos.has(k)) { vistos.add(k); efetivos.push(l); } }
+    } else {
+      const ix = novoIndice();
+      for (const l of ls) { const ch = chavesIdentidade(l); if (!procurar(ix, ch)) { indexar(ix, ch, l); efetivos.push(l); } }
+    }
+    return efetivos;
+  }
+  function analisarLista(texto, dedup) {
+    const ls = linhas(texto);
+    const semDup = deduplicar(ls, ALG);
+    const efetivos = dedup ? semDup : ls;
+    const excluidos = [], elegiveis = [];
+    for (const l of efetivos) {
+      const hit = estado.ok ? procurar(estado.indice, chavesIdentidade(l)) : null;
+      if (hit) {
+        excluidos.push({ linha: l, motivo: hit.motivo, sorteioAnterior: hit.valor.numeroSorteio, participanteAnterior: hit.valor.participante });
+      } else {
+        elegiveis.push(l);
+      }
+    }
+    return { linhas: ls, duplicados: ls.length - semDup.length, efetivos, excluidos, elegiveis };
+  }
+  function hashDaLista(ls) { return sha256Hex(ls.join("\n")); }
+
+  // ---------- aleatoriedade ----------
+  // Inteiro uniforme em [0, max) sem viés de módulo; registra cada uint32 consumido.
+  function inteiroSeguro(max, registro) {
+    const limite = 4294967296 - (4294967296 % max);
+    const buf = new Uint32Array(1);
+    while (true) {
+      crypto.getRandomValues(buf);
+      registro.push(buf[0]);
+      if (buf[0] < limite) return buf[0] % max;
+    }
+  }
+  // Replay determinístico: o mesmo algoritmo consumindo os uint32 registrados na ata.
+  function inteiroReplay(max, cursor) {
+    const limite = 4294967296 - (4294967296 % max);
+    while (true) {
+      if (cursor.i >= cursor.v.length) throw new Error("ata incompleta: faltam números aleatórios");
+      const v = cursor.v[cursor.i++];
+      if (!Number.isInteger(v) || v < 0 || v >= 4294967296) throw new Error("ata corrompida: número aleatório inválido");
+      if (v < limite) return v % max;
+    }
+  }
+  // Fisher–Yates parcial: escolhe n índices de 0..len-1, com ordem de classificação.
+  function escolher(len, n, proximoInt) {
+    const idx = Array.from({ length: len }, (_, i) => i);
+    for (let i = 0; i < n; i++) {
+      const j = i + proximoInt(len - i);
+      [idx[i], idx[j]] = [idx[j], idx[i]];
+    }
+    return idx.slice(0, n);
+  }
+
+  // ---------- base de sorteados (IndexedDB, registros encadeados por hash) ----------
+  const estado = {
+    carregado: false, ok: false, erro: "", idBase: "", registros: [],
+    head: { seq: 0, hash: "" }, ativos: new Map(), indice: novoIndice(), totalSorteios: 0
+  };
+  class ErroConflito extends Error {
+    constructor() { super("a base foi alterada em outra aba/janela durante o sorteio — nada foi gravado; sorteie novamente"); }
+  }
+  let dbPromise = null;
+  function abrirDB() {
+    if (!dbPromise) {
+      dbPromise = new Promise((res, rej) => {
+        if (!("indexedDB" in window)) { rej(new Error("este navegador não oferece IndexedDB")); return; }
+        const r = indexedDB.open("sorteio-scdp-base", 1);
+        r.onupgradeneeded = () => {
+          r.result.createObjectStore("registros", { keyPath: "seq" });
+          r.result.createObjectStore("meta", { keyPath: "chave" });
+        };
+        r.onsuccess = () => { const db = r.result; db.onversionchange = () => db.close(); res(db); };
+        r.onerror = () => rej(r.error || new Error("falha ao abrir a base"));
+      });
+      dbPromise.catch(() => { dbPromise = null; });
+    }
+    return dbPromise;
+  }
+  function pedido(r) { return new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
+  function transacao(db, lojas, fn) {
+    return new Promise((res, rej) => {
+      const tx = db.transaction(lojas, "readwrite");
+      let erroProprio = null;
+      tx.oncomplete = () => res();
+      tx.onabort = () => rej(erroProprio || tx.error || new Error("gravação abortada"));
+      try { fn(tx, (e) => { erroProprio = e; tx.abort(); }); } catch (e) { erroProprio = e; tx.abort(); }
+    });
+  }
+  async function lerTudo() {
+    const db = await abrirDB();
+    const tx = db.transaction(["registros", "meta"], "readonly");
+    const [registros, meta] = await Promise.all([
+      pedido(tx.objectStore("registros").getAll()),
+      pedido(tx.objectStore("meta").get("base"))
+    ]);
+    return { registros, meta };
+  }
+  async function criarMetaSeVazia() {
+    const db = await abrirDB();
+    await transacao(db, ["registros", "meta"], (tx) => {
+      const m = tx.objectStore("meta").get("base");
+      m.onsuccess = () => {
+        if (m.result) return;
+        const cont = tx.objectStore("registros").count();
+        cont.onsuccess = () => {
+          if (cont.result === 0) {
+            tx.objectStore("meta").add({ chave: "base", idBase: idAleatorio(16), criadaEm: new Date().toISOString() });
+          }
+        };
+      };
+    }).catch(() => {});
+  }
+  const genesis = (idBase) => sha256Hex("SCDP-SORTEIO-GENESIS:" + idBase);
+  const hashRegistro = (r) => sha256Hex(canonico({ seq: r.seq, tipo: r.tipo, dataHora: r.dataHora, prevHash: r.prevHash, dados: r.dados }));
+  const ehHex = (s, n) => typeof s === "string" && s.length === n && /^[0-9a-f]+$/.test(s);
+  const ehTexto = (s, max) => typeof s === "string" && s.length > 0 && s.length <= max;
+  function validarRegistro(r) {
+    if (!ehTexto(r.dataHora, 40) || isNaN(Date.parse(r.dataHora))) return "data inválida";
+    if (!ehHex(r.hash, 64) || !ehHex(r.prevHash, 64)) return "hash em formato inválido";
+    const d = r.dados;
+    if (!d || typeof d !== "object" || Array.isArray(d)) return "dados ausentes";
+    if (r.tipo === "sorteio") {
+      if (!Number.isInteger(d.numeroSorteio) || d.numeroSorteio < 1) return "número do sorteio inválido";
+      if (!ehHex(d.idSorteio, 16) || !ehHex(d.hashAtaSHA256, 64)) return "identificadores inválidos";
+      if (!Array.isArray(d.vencedores) || !d.vencedores.length || d.vencedores.length > MAX_LINHAS) return "lista de sorteados inválida";
+      for (const v of d.vencedores) {
+        if (!v || !Number.isInteger(v.posicao) || v.posicao < 1 || !ehTexto(v.participante, 5000)) return "sorteado inválido";
+      }
+      return "";
+    }
+    if (r.tipo === "liberacao") {
+      if (!ehHex(d.idSorteio, 16) || !Number.isInteger(d.posicao) || !ehTexto(d.participante, 5000) || !ehTexto(d.motivo, 500)) return "liberação inválida";
+      return "";
+    }
+    return "tipo de registro desconhecido";
+  }
+  async function verificarCadeia(idBase, registros) {
+    if (!ehHex(idBase, 32)) return { ok: false, erro: "identificador da base inválido" };
+    let prev = await genesis(idBase);
+    for (let i = 0; i < registros.length; i++) {
+      const r = registros[i];
+      if (!r || typeof r !== "object") return { ok: false, erro: "registro " + (i + 1) + " ilegível" };
+      if (r.seq !== i + 1) return { ok: false, erro: "sequência quebrada no registro " + (i + 1) };
+      if (r.prevHash !== prev) return { ok: false, erro: "encadeamento quebrado no registro " + r.seq };
+      const forma = validarRegistro(r);
+      if (forma) return { ok: false, erro: "registro " + r.seq + ": " + forma };
+      const h = await hashRegistro(r);
+      if (h !== r.hash) return { ok: false, erro: "o registro " + r.seq + " foi alterado (hash não confere)" };
+      prev = h;
+    }
+    return { ok: true, head: { seq: registros.length, hash: prev } };
+  }
+  function derivar(registros) {
+    const ativos = new Map(); let totalSorteios = 0;
+    for (const r of registros) {
+      if (r.tipo === "sorteio") {
+        totalSorteios++;
+        for (const v of r.dados.vencedores) {
+          ativos.set(r.dados.idSorteio + "#" + v.posicao, {
+            participante: v.participante, posicao: v.posicao, idSorteio: r.dados.idSorteio,
+            numeroSorteio: r.dados.numeroSorteio, dataHora: r.dataHora, seq: r.seq
+          });
+        }
+      } else if (r.tipo === "liberacao") {
+        ativos.delete(r.dados.idSorteio + "#" + r.dados.posicao);
+      }
+    }
+    const indice = novoIndice();
+    for (const a of ativos.values()) indexar(indice, chavesIdentidade(a.participante), a);
+    return { ativos, indice, totalSorteios };
+  }
+  async function carregarBase() {
+    try {
+      let { registros, meta } = await lerTudo();
+      if (!meta && registros.length === 0) {
+        await criarMetaSeVazia();
+        ({ registros, meta } = await lerTudo());
+      }
+      registros.sort((a, b) => a.seq - b.seq);
+      if (!meta) throw new Error("metadados da base ausentes");
+      const v = await verificarCadeia(meta.idBase, registros);
+      estado.carregado = true; estado.idBase = meta.idBase; estado.registros = registros;
+      if (v.ok) {
+        Object.assign(estado, { ok: true, erro: "", head: v.head }, derivar(registros));
+      } else {
+        Object.assign(estado, { ok: false, erro: v.erro, ativos: new Map(), indice: novoIndice(), totalSorteios: 0 });
+      }
+    } catch (e) {
+      Object.assign(estado, { carregado: true, ok: false, erro: "base indisponível: " + ((e && e.message) || e) });
+    }
+    renderBase();
+    atualizar();
+  }
+  let canal = null;
+  try { canal = new BroadcastChannel("sorteio-scdp-base"); } catch {}
+  async function anexarRegistro(tipo, dados, quando, cabeca) {
+    const r = { seq: cabeca.seq + 1, tipo, dataHora: quando.toISOString(), prevHash: cabeca.hash, dados };
+    r.hash = await hashRegistro(r);
+    const db = await abrirDB();
+    await transacao(db, ["registros"], (tx, falhar) => {
+      const st = tx.objectStore("registros");
+      const c = st.openCursor(null, "prev");
+      c.onsuccess = () => {
+        const ult = c.result ? c.result.value : null;
+        const seqAtual = ult ? ult.seq : 0;
+        if (seqAtual !== cabeca.seq || (ult && ult.hash !== cabeca.hash)) { falhar(new ErroConflito()); return; }
+        st.add(r);
+      };
+    });
+    if (canal) canal.postMessage("atualizada");
+    return r;
+  }
+  async function substituirBase(meta, registros) {
+    const db = await abrirDB();
+    await transacao(db, ["registros", "meta"], (tx) => {
+      const st = tx.objectStore("registros"), mt = tx.objectStore("meta");
+      st.clear(); mt.clear();
+      if (meta) mt.add(meta);
+      for (const r of registros) st.add(r);
+    });
+    if (canal) canal.postMessage("atualizada");
+  }
+
+  // ---------- interface da base ----------
+  function msgBase(ok, texto) {
+    const m = $("base-msg");
+    m.hidden = false; m.className = "caixa-msg " + (ok ? "ok" : "falha"); m.textContent = texto;
+  }
+  function renderBase() {
+    const st = $("status-base"), status = $("base-status"), log = $("base-log");
+    log.replaceChildren();
+    if (!estado.carregado) { st.textContent = "Abrindo base…"; return; }
+    if (!estado.ok) {
+      st.className = "status-base falha";
+      st.textContent = "Base com problema";
+      status.textContent = "⚠ " + estado.erro + ". Sorteios bloqueados até importar um backup válido ou zerar a base.";
+      $("base-resumo").textContent = "⚠";
+      return;
+    }
+    st.className = "status-base ok";
+    st.textContent = "Base íntegra · " + plural(estado.ativos.size, "sorteado", "sorteados");
+    $("base-resumo").textContent = "(" + estado.ativos.size + ")";
+    status.textContent = estado.registros.length
+      ? "Cadeia íntegra ✓ — " + plural(estado.registros.length, "registro", "registros") + " · " +
+        plural(estado.totalSorteios, "sorteio", "sorteios") + " · base " + estado.idBase.slice(0, 8) +
+        " · último hash " + estado.head.hash.slice(0, 12) + "…"
+      : "Base vazia — nenhum sorteio registrado ainda (base " + estado.idBase.slice(0, 8) + ").";
+    const recentes = estado.registros.slice(-200).reverse();
+    for (const r of recentes) {
+      const li = el("li");
+      if (r.tipo === "sorteio") {
+        li.append(el("b", "", "Registro #" + r.seq + " · Sorteio nº " + r.dados.numeroSorteio + " · " + dataLocal(r.dataHora)));
+        for (const v of r.dados.vencedores) {
+          const chave = r.dados.idSorteio + "#" + v.posicao;
+          const ativo = estado.ativos.get(chave);
+          const linha = el("div", "ganhador");
+          linha.append(el("span", "quem" + (ativo ? "" : " liberado"), v.posicao + "º " + v.participante));
+          if (ativo) {
+            const b = el("button", "", "Liberar");
+            b.type = "button";
+            b.addEventListener("click", () => liberar(ativo));
+            linha.append(b);
+          } else {
+            linha.append(el("span", "tag-lib", "liberado"));
+          }
+          li.append(linha);
+        }
+      } else {
+        li.append(el("b", "", "Registro #" + r.seq + " · Liberação · " + dataLocal(r.dataHora)));
+        li.append(el("div", "", r.dados.participante + " — motivo: " + r.dados.motivo));
+      }
+      li.append(el("div", "", "hash " + r.hash.slice(0, 16) + "… · id " + (r.dados.idSorteio || "")));
+      log.append(li);
+    }
+  }
+  async function liberar(ativo) {
+    const motivo = prompt(
+      "Liberar \"" + ativo.participante + "\" (" + ativo.posicao + "º do sorteio nº " + ativo.numeroSorteio +
+      ") para voltar a concorrer?\n\nInforme o motivo — ele fica registrado no log:");
+    if (motivo === null) return;
+    const m = motivo.trim();
+    if (!m) { alert("A liberação precisa de um motivo para ficar registrada."); return; }
+    try {
+      await anexarRegistro("liberacao",
+        { idSorteio: ativo.idSorteio, posicao: ativo.posicao, participante: ativo.participante, motivo: m.slice(0, 500) },
+        new Date(), { ...estado.head });
+      msgBase(true, "Liberado: " + ativo.participante + ".");
+    } catch (e) {
+      msgBase(false, "Não foi possível liberar: " + e.message + ".");
+    }
+    await carregarBase();
+  }
+  function jsonBackup() {
+    return JSON.stringify({
+      formato: FORMATO_BACKUP, versao: 1, idBase: estado.idBase,
+      exportadoEm: new Date().toISOString(), cabeca: estado.head, registros: estado.registros
+    }, null, 2);
+  }
+  function exportarBase() { baixar("base-sorteados-scdp-" + carimbo(new Date()) + ".json", jsonBackup()); }
+  $("btn-exportar").addEventListener("click", exportarBase);
+  $("btn-copiar-log").addEventListener("click", async () => { if (await copiar(jsonBackup())) piscar("aviso-log"); });
+  $("btn-importar").addEventListener("click", () => $("arquivo-import").click());
+  $("arquivo-import").addEventListener("change", async (ev) => {
+    const f = ev.target.files && ev.target.files[0];
+    ev.target.value = "";
+    if (!f) return;
+    if (f.size > 50 * 1024 * 1024) { msgBase(false, "Arquivo grande demais para um backup desta ferramenta."); return; }
+    let obj;
+    try { obj = JSON.parse(await f.text()); } catch { msgBase(false, "O arquivo não é um JSON válido."); return; }
+    if (!obj || typeof obj !== "object" || obj.formato !== FORMATO_BACKUP || obj.versao !== 1 ||
+        !Array.isArray(obj.registros) || obj.registros.length > MAX_REGISTROS) {
+      msgBase(false, "Este arquivo não é um backup da base de sorteados.");
+      return;
+    }
+    const registros = obj.registros.map((r) => (r && typeof r === "object")
+      ? { seq: r.seq, tipo: r.tipo, dataHora: r.dataHora, prevHash: r.prevHash, dados: r.dados, hash: r.hash }
+      : r);
+    const v = await verificarCadeia(obj.idBase, registros);
+    if (!v.ok) { msgBase(false, "Backup rejeitado: " + v.erro + "."); return; }
+    if (estado.registros.length &&
+        !confirm("Substituir a base atual (" + plural(estado.registros.length, "registro", "registros") +
+                 ") pelo backup (" + plural(registros.length, "registro", "registros") + ")?")) return;
+    try {
+      await substituirBase({ chave: "base", idBase: obj.idBase, criadaEm: "importada", importadaEm: new Date().toISOString() }, registros);
+      msgBase(true, "Backup importado: " + plural(registros.length, "registro", "registros") + ", cadeia íntegra ✓.");
+    } catch (e) {
+      msgBase(false, "Falha ao importar: " + e.message + ".");
+    }
+    await carregarBase();
+  });
+  $("btn-zerar").addEventListener("click", async () => {
+    const r = prompt("Isto apaga TODOS os sorteados e o log deste dispositivo — eles voltam a poder ser sorteados.\n" +
+                     "Um backup será baixado antes.\n\nDigite ZERAR para confirmar:");
+    if (r === null || r.trim().toUpperCase() !== "ZERAR") return;
+    if (estado.registros.length) exportarBase();
+    try {
+      await substituirBase(null, []);
+      msgBase(true, "Base zerada. O backup anterior foi baixado.");
+    } catch (e) {
+      msgBase(false, "Falha ao zerar: " + e.message + ".");
+    }
+    await carregarBase();
+  });
+  $("status-base").addEventListener("click", () => {
+    painelRes.classList.add("aberto");
+    $("base-sec").open = true;
+    $("base-sec").scrollIntoView({ block: "nearest" });
+  });
+
+  // ---------- ata: identificação, localização, hash e QR ----------
+  function obterLocalizacao() {
+    return new Promise((res) => {
+      if (!("geolocation" in navigator)) { res({ status: "indisponível neste dispositivo" }); return; }
+      navigator.geolocation.getCurrentPosition(
+        (p) => res({
+          status: "ok",
+          latitude: +p.coords.latitude.toFixed(6),
+          longitude: +p.coords.longitude.toFixed(6),
+          precisaoMetros: Math.round(p.coords.accuracy)
+        }),
+        () => res({ status: "permissão negada ou indisponível" }),
+        { timeout: 8000, maximumAge: 60000 }
+      );
+    });
+  }
+  async function hashDaAta(ata) {
+    const { hashAtaSHA256, ...resto } = ata;
+    return sha256Hex(ata.algoritmo === ALG_V1 ? JSON.stringify(resto, null, 2) : canonico(resto));
+  }
+  function codigoVerificacao(hashAta) {
+    return (hashAta.slice(0, 20).toUpperCase().match(/.{5}/g) || []).join("-");
+  }
+  function textoQR(ata) {
+    return "SORTEIO SCDP - AUDITAVEL v2\n" +
+      "n. " + ata.numeroSorteio + " | id " + ata.idSorteio + "\n" +
+      ata.dataHora + " | " + ata.fusoHorario + "\n" +
+      "base " + ata.base.idBase.slice(0, 8) + " reg #" + ata.base.registro + "\n" +
+      "lista sha256 " + ata.hashListaSHA256 + "\n" +
+      "ata sha256 " + ata.hashAtaSHA256;
+  }
+  function desenharQR(ata) {
+    const cv = $("qr"), ctx = cv.getContext("2d");
+    if (typeof qrcode !== "function") { cv.hidden = true; return; }
+    cv.hidden = false;
+    const qr = qrcode(0, "M");
+    qr.addData(textoQR(ata));
+    qr.make();
+    const n = qr.getModuleCount(), margem = 2;
+    const escala = Math.max(2, Math.floor(232 / (n + margem * 2)));
+    const lado = (n + margem * 2) * escala;
+    cv.width = lado; cv.height = lado;
+    ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, lado, lado);
+    ctx.fillStyle = "#000000";
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        if (qr.isDark(r, c)) ctx.fillRect((c + margem) * escala, (r + margem) * escala, escala, escala);
+      }
+    }
+  }
+
+  // ---------- estado da lista ao vivo ----------
+  let sorteando = false, tokenAtualizar = 0, timerAtualizar = 0;
+  async function atualizar() {
+    const token = ++tokenAtualizar;
+    const a = analisarLista(lista.value, ignoraDup.checked);
+    $("chip-total").textContent = plural(a.efetivos.length, "participante", "participantes");
+    const chipDup = $("chip-dup");
+    chipDup.hidden = a.duplicados === 0;
+    chipDup.textContent = plural(a.duplicados, "duplicado", "duplicados") + (ignoraDup.checked ? " ignorado" + (a.duplicados === 1 ? "" : "s") : "");
+    const chipBloq = $("chip-bloq");
+    chipBloq.hidden = a.excluidos.length === 0;
+    chipBloq.textContent = a.excluidos.length + " já sorteado" + (a.excluidos.length === 1 ? "" : "s");
+    const bloqSec = $("bloq-sec"), bloqLista = $("bloq-lista");
+    bloqSec.hidden = a.excluidos.length === 0;
+    bloqLista.replaceChildren(...a.excluidos.slice(0, 500).map((x) => {
+      const li = el("li");
+      li.append(el("b", "", x.linha));
+      li.append(el("div", "", x.motivo + " de quem saiu no sorteio nº " + x.sorteioAnterior + ": " + x.participanteAnterior));
+      return li;
+    }));
+    const eleg = a.elegiveis.length;
+    nVenc.max = Math.max(1, eleg);
+    $("lim-venc").textContent = "até " + eleg + " · classificados do 1º em diante";
+    if (Number(nVenc.value) > eleg && eleg > 0) nVenc.value = eleg;
+    const grande = a.linhas.length > MAX_LINHAS;
+    btnSortear.disabled = sorteando || !estado.ok || eleg < 2 || grande;
+    btnSortear.textContent =
+      !estado.carregado ? "Abrindo base…" :
+      !estado.ok ? "Base com problema — sorteio bloqueado" :
+      grande ? "Lista grande demais (máx. 20.000 linhas)" :
+      eleg < 2 ? "Mínimo de 2 participantes elegíveis" : "Sortear";
+    if (eleg === 0) { $("hash-vivo").textContent = "—"; return; }
+    const h = await hashDaLista(a.elegiveis);
+    if (token !== tokenAtualizar) return;
+    $("hash-vivo").textContent = h.slice(0, 16) + "…" + h.slice(-8);
+    $("hash-vivo").title = h;
+  }
+  lista.addEventListener("input", () => { clearTimeout(timerAtualizar); timerAtualizar = setTimeout(atualizar, 120); });
+  ignoraDup.addEventListener("change", atualizar);
+  nVenc.addEventListener("change", () => {
+    const eleg = analisarLista(lista.value, ignoraDup.checked).elegiveis.length;
+    const n = Math.floor(Number(nVenc.value)) || 1;
+    nVenc.value = Math.min(Math.max(n, 1), Math.max(1, eleg));
+  });
+  $("btn-limpar").addEventListener("click", () => { lista.value = ""; atualizar(); lista.focus(); });
+
+  // ---------- contagem regressiva ----------
+  async function contagemRegressiva() {
+    const box = $("overlay-contagem"), num = $("num-contagem"), prog = $("anel-prog"), aviao = $("aviao");
+    const pintar = (f) => {
+      prog.setAttribute("stroke-dashoffset", (CIRCUNF * (1 - f)).toFixed(2));
+      aviao.setAttribute("transform", "rotate(" + (360 * f).toFixed(2) + " 100 100)");
+    };
+    num.textContent = "3"; pintar(0); box.hidden = false;
+    const TOTAL = 3000;
+    if (reduzMov) {
+      for (let s = 3; s >= 1; s--) { num.textContent = s; pintar((4 - s) / 3); await esperar(1000); }
+    } else {
+      const inicio = performance.now();
+      let segAtual = 3;
+      await new Promise((res) => {
+        const tick = (t) => {
+          const passou = Math.min(TOTAL, t - inicio);
+          const seg = Math.max(1, Math.ceil((TOTAL - passou) / 1000));
+          if (seg !== segAtual) {
+            segAtual = seg; num.textContent = seg;
+            num.animate(
+              [{ transform: "scale(1.45)", opacity: .3 }, { transform: "scale(1)", opacity: 1 }],
+              { duration: 380, easing: "cubic-bezier(.2,.8,.3,1)" });
+          }
+          pintar(passou / TOTAL);
+          passou < TOTAL ? requestAnimationFrame(tick) : res();
+        };
+        requestAnimationFrame(tick);
+      });
+    }
+    box.hidden = true;
+  }
+
+  // ---------- sorteio ----------
+  function limparResultado() {
+    explicacao.style.display = "none";
+    vencedoresEl.style.display = "none"; vencedoresEl.replaceChildren();
+    ataBox.style.display = "none"; resMeta.style.display = "none"; resErro.hidden = true;
+  }
+  btnSortear.addEventListener("click", async () => {
+    if (sorteando || !estado.ok) return;
+    const a = analisarLista(lista.value, ignoraDup.checked);
+    if (a.linhas.length > MAX_LINHAS || a.elegiveis.length < 2) return;
+    let n = Math.floor(Number(nVenc.value)) || 1;
+    n = Math.min(Math.max(n, 1), a.elegiveis.length);
+    nVenc.value = n;
+
+    sorteando = true; btnSortear.disabled = true;
+    limparResultado();
+    resTitulo.textContent = "Resultado";
+    const cabeca = { ...estado.head };
+    const numeroSorteio = estado.totalSorteios + 1;
+    let ata;
+    try {
+      const hashEntrada = await hashDaLista(a.linhas);
+      const hashElegiveis = await hashDaLista(a.elegiveis);
+      const numeros = [];
+      const indices = escolher(a.elegiveis.length, n, (max) => inteiroSeguro(max, numeros));
+      const quando = new Date();
+      const localizacao = $("incluir-loc").checked ? await obterLocalizacao() : { status: "não solicitada" };
+      ata = {
+        algoritmo: ALG,
+        numeroSorteio,
+        idSorteio: idAleatorio(8),
+        dataHora: quando.toISOString(),
+        dataHoraLocal: quando.toLocaleString("pt-BR"),
+        fusoHorario: Intl.DateTimeFormat().resolvedOptions().timeZone || "desconhecido",
+        localizacao,
+        base: { idBase: estado.idBase, registro: cabeca.seq + 1, hashRegistroAnterior: cabeca.hash },
+        totalLinhas: a.linhas.length,
+        totalParticipantes: a.efetivos.length,
+        duplicadosIgnorados: ignoraDup.checked,
+        excluidosJaSorteados: a.excluidos.map((x) => ({ linha: x.linha, motivo: x.motivo, sorteioAnterior: x.sorteioAnterior })),
+        totalElegiveis: a.elegiveis.length,
+        hashEntradaSHA256: hashEntrada,
+        hashListaSHA256: hashElegiveis,
+        numerosAleatorios: numeros,
+        vencedores: indices.map((ix, i) => ({ posicao: i + 1, linha: ix + 1, participante: a.elegiveis[ix] }))
+      };
+      ata.hashAtaSHA256 = await hashDaAta(ata);
+      // Grava na base ANTES de revelar: recarregar a página não desfaz o resultado.
+      await anexarRegistro("sorteio", {
+        numeroSorteio, idSorteio: ata.idSorteio, hashAtaSHA256: ata.hashAtaSHA256,
+        totalElegiveis: a.elegiveis.length,
+        vencedores: ata.vencedores.map((v) => ({ posicao: v.posicao, participante: v.participante }))
+      }, quando, cabeca);
+    } catch (e) {
+      resTitulo.textContent = "Sorteio não realizado";
+      resErro.hidden = false;
+      resErro.textContent = "Nada foi sorteado: " + e.message + ".";
+      painelRes.classList.add("aberto");
+      sorteando = false;
+      await carregarBase();
+      return;
+    }
+
+    await contagemRegressiva();
+
+    painelRes.classList.add("aberto");
+    vencedoresEl.style.display = "flex";
+    for (let i = 0; i < ata.vencedores.length; i++) {
+      const li = el("li", i === 0 ? "ouro" : "");
+      li.append(el("span", "pos", (i + 1) + "º"), el("span", "nome", ata.vencedores[i].participante));
+      vencedoresEl.append(li);
+      if (!reduzMov && i < ata.vencedores.length - 1) await esperar(380);
+    }
+    resMeta.style.display = "block";
+    resMeta.textContent = "Sorteio nº " + ata.numeroSorteio + " · " + ata.dataHoraLocal + " · " +
+      ata.totalElegiveis + " elegíveis" + (ata.excluidosJaSorteados.length ? " (" + ata.excluidosJaSorteados.length + " já sorteados fora)" : "") +
+      " · registro #" + ata.base.registro + " na base";
+    ataEl.value = JSON.stringify(ata, null, 2);
+    $("cod-verif").textContent = codigoVerificacao(ata.hashAtaSHA256);
+    desenharQR(ata);
+    ataBox.style.display = "flex";
+    sorteando = false;
+    await carregarBase();
+  });
+
+  function voltarParaLista() {
+    painelRes.classList.remove("aberto");
+    resTitulo.textContent = "Como o sorteio é protegido";
+    explicacao.style.display = "flex";
+    vencedoresEl.style.display = "none";
+    resMeta.style.display = "none";
+    ataBox.style.display = "none";
+    resErro.hidden = true;
+    lista.focus();
+  }
+  $("btn-novo").addEventListener("click", voltarParaLista);
+  $("btn-fechar-res").addEventListener("click", voltarParaLista);
+  $("btn-copiar-ata").addEventListener("click", async () => { if (await copiar(ataEl.value)) piscar("aviso-copiado"); });
+  $("btn-baixar-ata").addEventListener("click", () => {
+    let nome = "ata-sorteio.json";
+    try { const a = JSON.parse(ataEl.value); nome = "ata-sorteio-" + a.numeroSorteio + "-" + a.idSorteio + ".json"; } catch {}
+    baixar(nome, ataEl.value);
+  });
+
+  // ---------- verificação ----------
+  async function verificarAta(textoLista, textoAta) {
+    const itens = [];
+    const falha = (t) => ({ ok: false, itens: itens.concat(t) });
+    let ata;
+    try { ata = JSON.parse(textoAta); } catch { return falha("A ata não é um JSON válido."); }
+    if (!ata || typeof ata !== "object" || Array.isArray(ata)) return falha("A ata não tem o formato esperado.");
+    const alg = ata.algoritmo;
+    if (alg !== ALG && alg !== ALG_V1) return falha("Algoritmo desconhecido: " + String(alg).slice(0, 60));
+    if (!Array.isArray(ata.numerosAleatorios) || ata.numerosAleatorios.length > MAX_NUMEROS) return falha("Números aleatórios ausentes ou em quantidade inválida.");
+    if (!Array.isArray(ata.vencedores) || !ata.vencedores.length || ata.vencedores.length > MAX_LINHAS) return falha("Lista de sorteados ausente ou inválida.");
+    if (!ehHex(ata.hashListaSHA256, 64)) return falha("Hash da lista ausente ou inválido.");
+
+    let ok = true;
+    itens.push("Sorteio nº " + String(ata.numeroSorteio ?? "s/n") + " · id " + String(ata.idSorteio || "—") + " · " +
+      String(ata.dataHoraLocal || ata.dataHora || "") + (ata.fusoHorario ? " (" + String(ata.fusoHorario) + ")" : ""));
+    if (typeof ata.hashAtaSHA256 === "string") {
+      const hAta = await hashDaAta(ata);
+      if (hAta === ata.hashAtaSHA256) itens.push("Hash da ata confere — código " + codigoVerificacao(hAta) + " (compare com o QR Code).");
+      else { ok = false; itens.push("A ata foi ALTERADA — o hash interno não confere."); }
+    } else if (alg === ALG) {
+      return falha("A ata não tem hash próprio (hashAtaSHA256).");
+    }
+
+    const ls = linhas(textoLista);
+    if (ls.length > MAX_LINHAS) return falha("Lista grande demais.");
+    let pool;
+    if (alg === ALG_V1) {
+      pool = ata.duplicadosIgnorados ? deduplicar(ls, ALG_V1) : ls;
+      if (pool.length !== ata.totalParticipantes) {
+        ok = false; itens.push("Total de participantes difere: lista tem " + pool.length + ", ata registra " + ata.totalParticipantes + ".");
+      }
+    } else {
+      if ((await hashDaLista(ls)) === ata.hashEntradaSHA256) itens.push("A lista informada é a mesma usada no sorteio (SHA-256).");
+      else { ok = false; itens.push("A lista informada NÃO é a mesma usada no sorteio — a impressão digital difere."); }
+      const efetivos = ata.duplicadosIgnorados ? deduplicar(ls, ALG) : ls;
+      if (efetivos.length !== ata.totalParticipantes) {
+        ok = false; itens.push("Total de participantes difere: lista tem " + efetivos.length + ", ata registra " + ata.totalParticipantes + ".");
+      }
+      const exc = ata.excluidosJaSorteados;
+      if (!Array.isArray(exc) || exc.some((x) => !x || typeof x.linha !== "string")) return falha("Lista de excluídos inválida.");
+      const conjExc = new Set(exc.map((x) => x.linha));
+      const conjEfet = new Set(efetivos);
+      if ([...conjExc].some((l) => !conjEfet.has(l))) { ok = false; itens.push("A ata exclui alguém que não está na lista."); }
+      pool = efetivos.filter((l) => !conjExc.has(l));
+      if (exc.length) itens.push(plural(exc.length, "participante excluído", "participantes excluídos") + " por já ter sido sorteado antes.");
+
+      const b = ata.base;
+      if (b && typeof b === "object" && estado.ok && b.idBase === estado.idBase) {
+        const reg = estado.registros.find((r) => r.seq === b.registro);
+        if (reg && reg.tipo === "sorteio" && reg.dados.hashAtaSHA256 === ata.hashAtaSHA256) {
+          itens.push("Ata registrada na base deste dispositivo (registro #" + reg.seq + ") ✓");
+          const antes = derivar(estado.registros.filter((r) => r.seq < reg.seq));
+          const esperado = new Set(efetivos.filter((l) => procurar(antes.indice, chavesIdentidade(l))));
+          const iguais = esperado.size === conjExc.size && [...esperado].every((l) => conjExc.has(l));
+          if (iguais) itens.push("Exclusões conferem com a base na data do sorteio ✓");
+          else { ok = false; itens.push("As exclusões da ata NÃO conferem com a base de sorteados."); }
+        } else {
+          ok = false; itens.push("A ata diz pertencer a esta base, mas NÃO está registrada nela.");
+        }
+      } else {
+        itens.push("Ata de outra base/dispositivo — exclusões conferidas apenas pelo conteúdo da ata.");
+      }
+    }
+    if ((await hashDaLista(pool)) === ata.hashListaSHA256) itens.push("Impressão digital dos elegíveis confere (SHA-256).");
+    else { ok = false; itens.push("Os elegíveis NÃO conferem com a ata — a impressão digital difere."); }
+
+    if (ok) {
+      try {
+        if (ata.vencedores.length > pool.length) throw new Error("mais sorteados do que elegíveis");
+        const cursor = { v: ata.numerosAleatorios, i: 0 };
+        const indices = escolher(pool.length, ata.vencedores.length, (max) => inteiroReplay(max, cursor));
+        if (cursor.i !== cursor.v.length) throw new Error("a ata contém números aleatórios além dos usados");
+        const iguais = indices.every((ix, i) => {
+          const v = ata.vencedores[i];
+          return v && v.linha === ix + 1 && v.participante === pool[ix];
+        });
+        if (iguais) {
+          itens.push("Resultado reproduzido com os números registrados: " +
+            ata.vencedores.map((v) => v.posicao + "º " + v.participante).join(" · "));
+        } else {
+          ok = false; itens.push("Os sorteados registrados NÃO correspondem ao replay dos números da ata.");
+        }
+      } catch (e) {
+        ok = false; itens.push("Não foi possível reproduzir o sorteio: " + e.message + ".");
+      }
+    }
+    return { ok, itens };
+  }
+  $("btn-verificar").addEventListener("click", async () => {
+    const res = $("verif-res");
+    let r;
+    try { r = await verificarAta($("verif-lista").value, $("verif-ata").value); }
+    catch (e) { r = { ok: false, itens: ["Erro ao verificar: " + e.message] }; }
+    res.hidden = false;
+    res.className = "caixa-msg " + (r.ok ? "ok" : "falha");
+    const ul = el("ul");
+    for (const it of r.itens) ul.append(el("li", "", it));
+    res.replaceChildren(el("b", "", r.ok ? "Sorteio íntegro ✓" : "Verificação falhou ✗"), ul);
+  });
+
+  // ---------- início ----------
+  if (canal) canal.onmessage = () => { if (!sorteando) carregarBase(); };
+  window.addEventListener("focus", () => { if (!sorteando) carregarBase(); });
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  Object.defineProperty(window, "SorteioCore", {
+    value: Object.freeze({ chavesIdentidade, deduplicar, escolher, inteiroSeguro, inteiroReplay, canonico, sha256Hex }),
+    enumerable: false, writable: false, configurable: false
+  });
+  carregarBase();
+})();
+</script>
+</body>
+</html>

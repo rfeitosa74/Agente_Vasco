@@ -1,0 +1,18 @@
+{
+  "name": "sorteio-scdp",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Sorteio auditável offline em arquivo único, com base de sorteados encadeada por hashes",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test --test-concurrency=1 tests/seguranca.test.mjs"
+  },
+  "devDependencies": {
+    "@fontsource/barlow": "^5.2.5",
+    "@fontsource/barlow-condensed": "^5.2.5",
+    "@fontsource/ibm-plex-mono": "^5.2.5",
+    "playwright-core": "^1.55.0",
+    "qrcode-generator": "^2.0.4"
+  }
+}
