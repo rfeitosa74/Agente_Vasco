@@ -137,3 +137,12 @@ test('tarefa do WhatsApp com pedido de pesquisa já traz o tema', async () => {
   const r = analisarMensagem('Ciências: pesquise sobre Marte e entregue na sexta.\n1) Qual o quarto planeta?', '2026-10-21');
   assert.deepEqual(r.tarefas[0].pesquisas, ['Marte']);
 });
+
+test('prazo “entregue na sexta” é entendido e sai do título', async () => {
+  const { analisarMensagem } = await import('../js/core/zap.js');
+  const [t] = analisarMensagem('Ciências: pesquise sobre o sistema solar e entregue na sexta', '2026-11-10').tarefas;
+  assert.equal(t.entrega, '2026-11-13');
+  assert.equal(t.entregaDetectada, true);
+  assert.doesNotMatch(t.titulo, /entregue/);
+  assert.deepEqual(t.pesquisas, ['O sistema solar']);
+});

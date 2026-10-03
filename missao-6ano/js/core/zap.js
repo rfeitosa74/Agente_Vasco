@@ -47,7 +47,7 @@ const dataValida = (a, m, d) => {
 export function acharPrazo(texto, ref) {
   const t = norm(texto);
   const [ay, am, ad] = ref.split('-').map(Number);
-  const gatilho = '(?:para|pra|entregar|entrega|ate|prazo|devolver|devolucao|ate o dia|para o dia|no dia|dia)';
+  const gatilho = '(?:para|pra|entregar|entrega|entregue|entreguem|enviar|envie|mandar|mande|ate|prazo|devolver|devolucao|ate o dia|para o dia|no dia|dia)';
   // dd/mm(/aa)
   let m = t.match(new RegExp(`${gatilho}\\s*(?:o\\s+|a\\s+)?(\\d{1,2})[\\/.](\\d{1,2})(?:[\\/.](\\d{2,4}))?`));
   if (m) {
@@ -59,7 +59,7 @@ export function acharPrazo(texto, ref) {
   if (new RegExp(`${gatilho}\\s*(?:o\\s+)?depois de amanha`).test(t)) return addDays(ref, 2);
   if (new RegExp(`${gatilho}\\s*(?:o\\s+)?amanha`).test(t)) return addDays(ref, 1);
   if (new RegExp(`${gatilho}\\s*hoje`).test(t)) return ref;
-  m = t.match(new RegExp(`${gatilho}\\s*(?:o\\s+|a\\s+)?(segunda|terca|quarta|quinta|sexta|sabado|domingo)`));
+  m = t.match(new RegExp(`${gatilho}\\s*(?:o\\s+|a\\s+|na\\s+|no\\s+)?(segunda|terca|quarta|quinta|sexta|sabado|domingo)`));
   if (m) {
     let d = addDays(ref, 1);
     for (let i = 0; i < 8 && dow(d) !== SEMANA[m[1]]; i++) d = addDays(d, 1);
@@ -121,7 +121,7 @@ export function extrairItens(linhas) {
 }
 
 /** Tira do fim da frase o “para sexta”, “entregar dia 8”… (o prazo vai para o campo próprio). */
-const tirarFraseDePrazo = (l) => l.replace(/[\s,;(]*\b(?:para|pra|entregar|entrega|até|ate)\s+(?:o\s+dia\s+|dia\s+)?(?:amanhã|amanha|hoje|depois de amanhã|segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|\d{1,2}[\/.]\d{1,2}(?:[\/.]\d{2,4})?|\d{1,2})\)?[\s.!]*$/i, '').trim();
+const tirarFraseDePrazo = (l) => l.replace(/[\s,;(]*(?:\be\s+)?\b(?:para|pra|entregar|entrega|entregue|entreguem|enviar|envie|até|ate)\s+(?:o\s+dia\s+|dia\s+|na\s+|no\s+)?(?:amanhã|amanha|hoje|depois de amanhã|segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|\d{1,2}[\/.]\d{1,2}(?:[\/.]\d{2,4})?|\d{1,2})\)?[\s.!]*$/i, '').trim();
 
 const resumo = (t, max = 70) => { const s = t.replace(/[.:;,\s]+$/, ''); return s.length > max ? s.slice(0, max - 1).trimEnd() + '…' : s; };
 

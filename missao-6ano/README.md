@@ -11,7 +11,9 @@ Dois modos no mesmo aplicativo:
 | Entrada | Botão “Sou o Luan” | Botão “Sou o pai” (com PIN opcional) |
 
 É um site estático (HTML + CSS + JavaScript puro, **sem build e sem dependências**), instalável no celular/tablet
-como aplicativo (PWA) e que **funciona offline**. Os dados ficam no aparelho; nada vai para a internet.
+como aplicativo (PWA) e que **funciona offline**. Os dados ficam no aparelho (a nuvem e as consultas a fontes online são opcionais e desligáveis).
+
+📘 **Manual de uso (PDF, com telas):** [`docs/Manual_Missao_6Ano.pdf`](docs/Manual_Missao_6Ano.pdf) — fonte em `docs/manual/manual.html`.
 
 ---
 
