@@ -37,6 +37,8 @@ export function novaTarefa(p, hoje, livres = []) {
     origem: p.origem || 'digitada', fonteTexto: p.fonteTexto || '',
     anexos: p.anexos || [], itens: (p.itens || []).map(novoItem),
     minutos: p.minutos || null,
+    pesquisas: p.pesquisas || [], // temas para pesquisar nas fontes online
+    referencias: p.referencias || [], // trechos de fontes que o pai anexou à tarefa
     iniciadaEm: null, feitaEm: null, conferidaEm: null, fotosCaderno: [], respondeuNoCaderno: false,
     tempoGasto: 0, comentarioPai: '', nota: null, cancelada: false,
   };

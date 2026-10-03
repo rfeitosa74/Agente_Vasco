@@ -1,6 +1,7 @@
 // Interpreta o texto de uma mensagem de tarefa (WhatsApp do grupo dos pais, texto de PDF/foto lido por OCR…)
 // e propõe tarefas: disciplina, prazo, descrição e questões. É uma ajuda: o pai sempre revisa antes de salvar.
 import { addDays, dow, iso, isWeekday } from '../util/dates.js';
+import { acharTemasDePesquisa } from './fontes.js';
 
 const norm = (s) => s.normalize('NFC').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -198,6 +199,7 @@ export function analisarMensagem(texto, hoje, { livres = [] } = {}) {
       itens: itensFinal,
       entrega: prazo || proximoDiaUtil(ref, livres),
       entregaDetectada: !!prazo,
+      pesquisas: acharTemasDePesquisa([...corpo, ...meta].join('\n')),
       origem: /apostila/.test(tudo) ? 'apostila' : /livro|\bpag/.test(tudo) ? 'livro' : 'whatsapp',
     };
     if (!b.disc) avisos.push('Não reconheci a disciplina de uma das tarefas — escolha na revisão.');

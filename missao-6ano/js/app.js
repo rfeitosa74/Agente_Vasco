@@ -20,10 +20,11 @@ const ROTAS_ALUNO = {
   carta: () => import('./views/aluno/carta.js'),
   tarefas: () => import('./views/aluno/tarefas.js'),
   tarefa: () => import('./views/aluno/tarefa.js'),
+  descobrir: () => import('./views/aluno/descobrir.js'),
 };
 
 export const MENU_PAI = [
-  ['painel', 'Painel', '🏠'], ['hoje', 'Hoje do Luan', '☀️'], ['tarefas', 'Tarefas de casa', '📚'], ['semana', 'Semana e provas', '📅'], ['erros', 'Erros e notas', '📝'],
+  ['painel', 'Painel', '🏠'], ['hoje', 'Hoje do Luan', '☀️'], ['tarefas', 'Tarefas de casa', '📚'], ['pesquisar', 'Pesquisar', '🔎'], ['semana', 'Semana e provas', '📅'], ['erros', 'Erros e notas', '📝'],
   ['cartas', 'Cartas', '🃏'], ['matematica', 'Matemática', '🧮'], ['desafio', 'Desafio de sábado', '🏆'], ['progresso', 'Progresso', '📈'],
   ['atencao', 'Atenção', '👁️'], ['professoras', 'Professoras', '👩‍🏫'], ['guia', 'Guia do plano', '📖'], ['config', 'Configurações', '⚙️'],
 ];
@@ -106,7 +107,7 @@ function shellAluno(view) {
   const shell = h('div', { class: 'shell-aluno' },
     h('header', { class: 'topbar' },
       h('a', { class: 'brand', href: '#/aluno/hoje' }, h('img', { src: 'assets/icon.svg', alt: '' }), h('span', null, 'Missão 6º Ano')),
-      h('span', { class: 'grow' }), h('span', { class: 'chip', id: 'synchip', hidden: true }), xpChip, h('span', { class: 'chip', id: 'corrente', hidden: true }),
+      h('span', { class: 'grow' }), h('a', { class: 'btn ghost sm', href: '#/aluno/descobrir', 'aria-label': 'Descobrir: pesquisar em fontes confiáveis', title: 'Descobrir', 'aria-current': view === 'descobrir' ? 'page' : null }, '🔎'), h('span', { class: 'chip', id: 'synchip', hidden: true }), xpChip, h('span', { class: 'chip', id: 'corrente', hidden: true }),
       h('button', { class: 'btn ghost sm', 'aria-label': 'Área do pai', title: 'Área do pai', onClick: () => pedirPin(() => go('#/pai/painel')) }, '🔒')),
     !storageOk() ? h('div', { class: 'container' }, banner('aviso', 'Atenção', 'O navegador não está deixando salvar os dados neste modo. Feche a janela anônima ou libere o armazenamento.')) : null,
     conteudo,

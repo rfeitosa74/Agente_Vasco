@@ -10,6 +10,8 @@ import * as sync from '../../sync.js';
 import { listar as listarAnexos, obterBlob, salvarBlob } from '../../anexos.js';
 import { blobParaBase64, base64ParaBlob } from '../../core/syncAnexosCore.js';
 import { abrirModal } from '../../ui.js';
+import { FONTES, ORDEM_FONTES, diagnosticar } from '../../core/fontes.js';
+import { configFontes, limparCache, tamanhoCache } from '../../pesquisa.js';
 
 export default function config(ctx) {
   const s = getState();
@@ -84,6 +86,30 @@ export default function config(ctx) {
     h('p', { class: 'small muted', style: { margin: 0 } }, 'O plano não prevê dever de casa na tabela de XP, então por padrão tarefa NÃO dá XP (0). Se quiser, dê um valor pequeno por tarefa enviada. O teto avisa quando a noite está pesada: o plano pede para não aumentar as horas.'),
     h('div', { class: 'form-row' }, h('div', { class: 'field' }, h('label', null, 'Teto de tarefa por noite (min)'), teto), h('div', { class: 'field' }, h('label', null, 'XP por tarefa enviada'), xpT)),
     h('button', { class: 'btn sm', onClick: () => { mutate((st) => { st.config.tetoTarefaMin = Number(teto.value) || 60; st.config.xpTarefa = Math.max(0, Number(xpT.value) || 0); }); salvar(); } }, 'Salvar')));
+
+  // ---------- fontes online ----------
+  const fc = configFontes();
+  const marcas = Object.fromEntries(ORDEM_FONTES.map((k) => [k, h('input', { type: 'checkbox', checked: fc.habilitadas.includes(k), 'aria-label': FONTES[k].nome })]));
+  const livreA = h('input', { type: 'checkbox', checked: !!fc.pesquisaLivreAluno, 'aria-label': 'Pesquisa livre para o Luan' });
+  const linksA = h('input', { type: 'checkbox', checked: fc.linksExternosAluno !== false, 'aria-label': 'Links para sites de estudo' });
+  const resultadoTeste = h('div', { class: 'stack sm', 'aria-live': 'polite' });
+  raiz.append(h('div', { class: 'card stack' }, h('h2', { style: { margin: 0 } }, '🔎 Fontes online'),
+    h('p', { class: 'small muted', style: { margin: 0 } }, 'Quando há internet, a plataforma consulta fontes confiáveis para apoiar o estudo. É uma lista fechada (nada de busca aberta na web). Sem internet, usa o que foi guardado. Ao consultar, o aparelho fala direto com o site da fonte (que vê o endereço de internet da casa, como em qualquer acesso); nada da família é enviado.'),
+    ...ORDEM_FONTES.map((k) => h('label', { class: 'check' }, marcas[k], h('span', null, `${FONTES[k].icone} ${FONTES[k].nome} — `, h('span', { class: 'muted small' }, FONTES[k].confianca)))),
+    h('label', { class: 'check' }, livreA, h('span', null, 'Deixar o Luan pesquisar livremente ', h('span', { class: 'muted small' }, '(desligado: ele só vê os temas das tarefas e os que você sugerir)'))),
+    h('label', { class: 'check' }, linksA, h('span', null, 'Mostrar links para sites de estudo (Khan Academy, Brasil Escola…)')),
+    h('div', { class: 'row' },
+      h('button', { class: 'btn sm primary', onClick: () => { mutate((st) => { st.config.fontes = { habilitadas: ORDEM_FONTES.filter((k) => marcas[k].checked), pesquisaLivreAluno: livreA.checked, linksExternosAluno: linksA.checked }; }); salvar('Fontes salvas'); } }, 'Salvar'),
+      h('button', { class: 'btn sm', onClick: async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        resultadoTeste.replaceChildren(h('p', { class: 'muted small' }, 'Testando cada fonte…'));
+        const r = await diagnosticar();
+        resultadoTeste.replaceChildren(...r.map((x) => h('div', { class: 'row tight' }, chip(x.ok ? '✓' : '✗', x.ok ? 'ok' : 'bad'), h('b', null, FONTES[x.fonte].nome), h('span', { class: 'small muted' }, `${x.detalhe} · ${x.ms} ms`))));
+        btn.disabled = false;
+      } }, 'Testar conexão com as fontes'),
+      h('button', { class: 'btn sm ghost', onClick: () => { limparCache(); toast('Cópias temporárias apagadas'); } }, `Limpar cópias temporárias (${tamanhoCache()})`)),
+    resultadoTeste));
 
   // ---------- dias livres ----------
   const dl = h('input', { type: 'date', 'aria-label': 'Novo dia livre' });

@@ -1,6 +1,6 @@
 // Service worker: (1) deixa o aplicativo funcionar offline (cache de tudo que é estático, rede primeiro);
 // (2) recebe o “Compartilhar” do Android (WhatsApp → Missão 6º Ano) e guarda o conteúdo para a tela Receber tarefa.
-const VERSAO = 'missao6-v3';
+const VERSAO = 'missao6-v4';
 const NUCLEO = ['./', 'index.html', 'css/styles.css', 'manifest.webmanifest', 'assets/icon.svg', 'assets/icon-maskable.svg'];
 
 self.addEventListener('install', (e) => {

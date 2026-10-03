@@ -18,6 +18,7 @@ export const CONFIG_PADRAO = {
   sprintMin: {},
   horarios: { dever: '18:30', acordar: '07:00', aquecimento: '07:30', missao: '07:45', episodio: '08:15', escola: '12:30', explica: '20:00', base: '20:30', dormir: '21:00', desafio: '09:00' },
   tetoTarefaMin: 60, // acima disso o app avisa que a noite está pesada (o plano recomenda NÃO aumentar as horas)
+  fontes: { habilitadas: ['wikipedia', 'wiktionary', 'nasa', 'ibge'], pesquisaLivreAluno: false, linksExternosAluno: true }, // fontes online confiáveis (só com internet)
   xpTarefa: 0, // XP por tarefa de casa concluída (0 = desligado: o XP do plano não prevê tarefas)
   niveis: { bronze: 150, prata: 200, ouro: 250 },
   recompensas: {
@@ -62,6 +63,8 @@ function estadoInicial() {
     leituras: [],
     desafios: [],
     tarefas: [],
+    biblioteca: [], // resultados de pesquisa guardados (funcionam sem internet)
+    sugestoes: [], // temas que o pai sugere ao aluno pesquisar
     trilha: {},
     flags: { cartaLida: false, boasVindasPai: false },
   };

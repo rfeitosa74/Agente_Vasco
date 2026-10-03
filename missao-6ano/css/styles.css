@@ -172,6 +172,8 @@ textarea { min-height: 84px; resize: vertical; }
 .res-btn.parcial[aria-pressed=true] { background: var(--amber); color: #3b2400; border-color: transparent; }
 .res-btn.errado[aria-pressed=true] { background: var(--bad); color: #fff; border-color: transparent; }
 .texto-redacao { font-size: 1.1rem; line-height: 1.7; min-height: 260px; }
+.res-img { width: 96px; height: 96px; object-fit: cover; border-radius: 10px; flex: none; background: var(--surface-2); }
+@media (max-width: 480px) { .res-img { width: 72px; height: 72px; } }
 .quote { border-left: 4px solid var(--line); padding: 6px 12px; background: var(--surface-2); border-radius: 0 10px 10px 0; white-space: pre-wrap; }
 
 /* ---------- linha do dia (blocos) ---------- */

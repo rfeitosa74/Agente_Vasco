@@ -6,6 +6,7 @@ import { statusDe, estimarMinutos, progressoDe, ROTULO_STATUS, situacaoDe } from
 import { galeria } from '../galeria.js';
 import { botoesAnexo } from '../anexoPicker.js';
 import { banner, chip, confirmar, toast } from '../../ui.js';
+import { FONTES } from '../../core/fontes.js';
 import { fmtDia } from '../../util/dates.js';
 import { DISC_COR } from '../../data/tecnicas.js';
 
@@ -42,6 +43,11 @@ export default function tarefaAluno(ctx) {
   }
 
   if (t.anexos?.length) raiz.append(h('div', { class: 'card stack sm' }, h('h3', { style: { margin: 0 } }, '📖 Páginas da tarefa'), h('p', { class: 'small muted', style: { margin: 0 } }, 'Toque na imagem para ampliar.'), galeria(t.anexos, { tamanho: 120 })));
+
+  if ((t.referencias || []).length) raiz.append(h('div', { class: 'card stack sm' }, h('h3', { style: { margin: 0 } }, '📎 Material de apoio (indicado pelo pai)'),
+    ...t.referencias.map((r) => h('details', { class: 'acc' }, h('summary', null, r.titulo), h('div', { class: 'acc-body stack sm' }, h('p', { style: { margin: 0, whiteSpace: 'pre-wrap' } }, r.resumo), h('p', { class: 'small muted', style: { margin: 0 } }, `Fonte: ${FONTES[r.fonte]?.nome || r.fonte} · ${r.licenca || ''}`), r.url ? h('a', { class: 'btn sm', href: r.url, target: '_blank', rel: 'noopener noreferrer' }, 'Ler na fonte ↗') : null)))));
+  if ((t.pesquisas || []).length) raiz.append(h('div', { class: 'card stack sm' }, h('h3', { style: { margin: 0 } }, '🔎 Para pesquisar'), h('p', { class: 'small muted', style: { margin: 0 } }, 'Fontes confiáveis da internet (precisa de conexão).'),
+    h('div', { class: 'row tight' }, ...t.pesquisas.map((p) => h('a', { class: 'btn sm', href: `#/aluno/descobrir?q=${encodeURIComponent(p)}&d=${encodeURIComponent(t.disciplina)}&t=${t.id}` }, '🔎 ', p)))));
 
   const travado = enviada; // depois de enviada, só lê (ou reabre)
 

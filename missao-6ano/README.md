@@ -43,6 +43,23 @@ O Luan recebe tarefas todos os dias de aula, enviadas no grupo de pais do WhatsA
 
 A carga da noite (soma das estimativas) é comparada com um teto (padrão 60 min): o plano manda **não aumentar as horas**, então o app avisa quando a noite está pesada. Tarefa **não dá XP** por padrão (a tabela de XP do plano não prevê dever de casa); *Configurações → Tarefas de casa* permite dar um valor pequeno. As imagens ficam no aparelho (IndexedDB) e, com a sincronização ligada, vão para a nuvem para o outro aparelho ver (imagens > 4 MB ficam só locais). O backup exportado inclui as imagens.
 
+### Fontes online confiáveis (quando há internet)
+O app consulta **uma lista fechada** de fontes — não é busca aberta na web:
+
+| Fonte | Serve para | Observação |
+|---|---|---|
+| Wikipédia (pt) | qualquer assunto | resumo + imagem + link; confirme fatos importantes em 2ª fonte |
+| Wikcionário | significado/origem de uma palavra | só para termos de uma palavra |
+| NASA (Biblioteca de Imagens) | astronomia | textos em inglês (bom para praticar) |
+| IBGE | países e estados | dados abertos |
+| Links (abrem em outra aba) | Khan Academy Brasil, Brasil Escola, Toda Matéria, Mundo Educação, IBGE Educa, NASA Space Place | nada é baixado desses sites |
+
+- **Luan → 🔎 (topo) “Descobrir”**: vê os *temas* das tarefas (o app detecta “pesquise sobre…” na mensagem do WhatsApp; o pai também pode listar temas ao editar a tarefa) e os que o pai sugerir. A **pesquisa livre vem desligada**; o pai libera em *Configurações → Fontes online*.
+- Em cada resultado: fonte, licença, “Ler na fonte ↗”, **Guardar** (biblioteca, funciona offline), **Fazer carta** (entra nas revisões) e **Testar minha memória** (escreve o que lembra antes de ver o texto).
+- **Pai → Pesquisar**: mesma ferramenta, mais **Anexar à tarefa** (o Luan vê como “material de apoio”) e **Sugerir ao Luan**.
+- **Sem internet**: usa as cópias recentes e a biblioteca; com uma fonte fora do ar, as outras continuam.
+- *Configurações → Fontes online*: liga/desliga cada fonte, libera a pesquisa livre e os links, **“Testar conexão com as fontes”** e limpa as cópias temporárias.
+
 ### Primeiros passos (o Painel do pai guia isso)
 1. **Configurações**: crie um PIN, confira a data do início do 4º bimestre e os horários.
 2. **Semana e provas**: cole a agenda (`08/10 História 2 Egito e Mesopotâmia`, uma por linha). O aplicativo distribui o ciclo D-3 sozinho.
@@ -114,14 +131,15 @@ js/anexos.js · js/vendor → vendor/   imagens (IndexedDB), PDF.js e Tesseract 
 js/core/zap.js · tarefas.js        interpretador de mensagens do WhatsApp · modelo de tarefa
 js/tools/       mini-aplicativos dentro dos sprints (cartas, problemas, refazer, perguntas, texto, prova)
 js/views/aluno/ · js/views/pai/                   telas
-tests/                                            82 testes
+js/pesquisa.js · js/core/fontes.js                fontes online: cache, biblioteca, adaptadores
+tests/                                            94 testes
 ```
 
 Dica de teste manual: acrescente `?hoje=2026-10-28` à URL para simular qualquer data (e ver as fases da rampa).
 
 ## Privacidade
 
-Por padrão nenhum dado sai do aparelho: sem cookies de terceiros, sem fontes ou scripts externos. A única conexão externa é a **sincronização opcional** (Supabase), que só funciona depois que o pai ativa e cria o código da família.
+Por padrão nenhum dado da família sai do aparelho: sem cookies de terceiros, sem fontes ou scripts externos. As conexões externas são a **sincronização opcional** (Supabase), que só funciona depois que o pai ativa e cria o código da família, e as **consultas às fontes de estudo** (só pedem o termo pesquisado; desligáveis em Configurações).
 O nome padrão do aluno é só “Luan” (troque em *Configurações*). O PDF e o plano não fazem parte do repositório.
 
 ## Limites do dever de casa (honestidade)
@@ -129,6 +147,11 @@ O nome padrão do aluno é só “Luan” (troque em *Configurações*). O PDF e
 - O OCR lê bem texto impresso e fotos nítidas; letra cursiva e fotos tortas/escuras saem com erros (o app mostra a certeza da leitura). Sempre fica a imagem original junto.
 - O “Compartilhar” do WhatsApp só existe no **Android** com o app instalado (PWA); no iPhone, cole o texto ou escolha a imagem.
 - A pasta `vendor/` (~15 MB) traz PDF.js e Tesseract para funcionar offline; só carregam quando usados.
+
+## Limites das fontes online (honestidade)
+- **As APIs reais não foram testadas de dentro do ambiente de desenvolvimento** (a rede dele bloqueia esses sites). O código foi escrito pelo formato documentado de cada API e testado com respostas simuladas (unitário e no navegador). Se alguma fonte mudar o formato ou bloquear o acesso, só ela para de responder — o app avisa e as demais seguem. Use **Configurações → Fontes online → Testar conexão** no seu aparelho para conferir.
+- Ao consultar, o aparelho conversa direto com o site da fonte, que vê o endereço de internet da casa (e não recebe nenhum dado da família). Imagens da Wikipédia/NASA também carregam dos servidores deles.
+- Texto de fonte aberta pode ter erro: o app lembra de confirmar em uma segunda fonte e traz o guia “Como saber se uma fonte é confiável”.
 
 ## Evoluções possíveis
 - **IA de leitura de tarefas** (Claude): enviar a foto/PDF e receber as questões já estruturadas. Exige uma função no servidor para guardar a chave de API (não pode ficar no app).

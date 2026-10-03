@@ -95,6 +95,7 @@ export const GUIA = [
       { t: 'Como você confere', d: 'Certo / parcial / errado, com o tipo do erro (A não sabia, B sabia e errei, C em branco). Elogie o processo, não a inteligência. O que for erro entra no diário de erros: tipo A vira carta-relâmpago, erro de Matemática volta amanhã.' },
     ],
     destaques: [
+      { tipo: 'ok', titulo: 'Fontes online para estudar', texto: 'Quando há internet, o app consulta Wikipédia, Wikcionário, NASA e IBGE e sugere sites como Khan Academy e Brasil Escola. O Luan vê os temas das tarefas em “🔎 Descobrir”; a pesquisa livre vem desligada (você libera em Configurações). Regra de casa: ler a fonte, fechar, escrever com as próprias palavras — e confirmar o que for importante em uma segunda fonte. Use “Testar minha memória” e “Fazer carta” para transformar leitura em estudo ativo.' },
       { tipo: 'aviso', titulo: 'Se a carga estiver alta', texto: 'Dever + reforço todos os dias é o cenário de saturação descrito no início do guia. Se o aviso de “noite pesada” aparecer com frequência, leve os números às professoras (aba Professoras) e priorize o que vale nota — não corte o sono nem o domingo.' },
     ],
   },

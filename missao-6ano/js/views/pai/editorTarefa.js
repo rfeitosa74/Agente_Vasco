@@ -34,7 +34,10 @@ export function editorTarefa(t, { imagens = [], aoRemover, avisoPrazo = false } 
         h('div', { class: 'field' }, h('label', null, 'Tempo (min)'), min),
         h('div', { class: 'field' }, h('label', null, 'Origem'), origem)),
       h('div', { class: 'field' }, h('label', null, 'Título'), titulo),
-      h('div', { class: 'field' }, h('label', null, 'Descrição / instruções'), desc));
+      h('div', { class: 'field' }, h('label', null, 'Descrição / instruções'), desc),
+      h('div', { class: 'field' }, h('label', null, '🔎 Temas para pesquisar (opcional)'),
+        h('input', { type: 'text', 'aria-label': 'Temas para pesquisar', placeholder: 'Ex.: Egito antigo, fotossíntese (separe por vírgula)', value: (t.pesquisas || []).join(', '), onInput: (e) => { t.pesquisas = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).slice(0, 6); } }),
+        h('span', { class: 'hint' }, 'O Luan vê estes temas na tarefa e pode consultar fontes confiáveis na internet.')));
 
     // ----- imagens -----
     if (imagens.length) {

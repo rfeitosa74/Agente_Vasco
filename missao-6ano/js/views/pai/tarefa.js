@@ -6,6 +6,7 @@ import { statusDe, situacaoDe, estimarMinutos, ROTULO_STATUS, TIPOS_ITEM, ORIGEN
 import { galeria } from '../galeria.js';
 import { editorTarefa } from './editorTarefa.js';
 import { abrirModal, banner, chip, confirmar, toast } from '../../ui.js';
+import { removerReferencia } from '../../pesquisa.js';
 import { fmtDia } from '../../util/dates.js';
 import { DISC_COR } from '../../data/tecnicas.js';
 import { TIPOS_ERRO } from '../../core/insights.js';
@@ -35,6 +36,12 @@ export default function tarefa(ctx) {
       h('div', { class: 'row tight no-print' }, h('button', { class: 'btn sm', onClick: editar }, '✏️ Editar'), h('button', { class: 'btn sm danger', onClick: async () => { if (await confirmar(`Excluir a tarefa “${t.titulo}” e as imagens dela? O Luan deixa de vê-la.`, { ok: 'Excluir', perigo: true })) { await excluirTarefa(t.id); ctx.go('#/pai/tarefas'); } } }, '🗑 Excluir'))));
 
   if (t.anexos?.length) raiz.append(h('div', { class: 'card stack sm' }, h('h3', { style: { margin: 0 } }, 'Páginas / imagens da tarefa'), galeria(t.anexos, { tamanho: 110 })));
+
+  // ---------- fontes online ----------
+  const q = encodeURIComponent((t.pesquisas && t.pesquisas[0]) || t.titulo.replace(/^Reda[cç][aã]o:\s*/i, ''));
+  raiz.append(h('div', { class: 'card stack sm no-print' }, h('div', { class: 'row between' }, h('h3', { style: { margin: 0 } }, '🔎 Fontes online'), h('a', { class: 'btn sm', href: `#/pai/pesquisar?q=${q}&d=${encodeURIComponent(t.disciplina)}&t=${t.id}` }, 'Pesquisar sobre esta tarefa')),
+    (t.pesquisas || []).length ? h('p', { class: 'small', style: { margin: 0 } }, 'Temas para o Luan: ', t.pesquisas.join(', ')) : h('p', { class: 'small muted', style: { margin: 0 } }, 'Dica: em “Editar”, liste temas para pesquisar e o Luan os vê na tarefa.'),
+    ...(t.referencias || []).map((r) => h('div', { class: 'row between' }, h('span', { class: 'small' }, `📎 ${r.titulo} (${r.fonte})`), h('button', { class: 'btn ghost sm', 'aria-label': 'Remover referência', onClick: () => { removerReferencia(t.id, r.id); re(); } }, '✕')))));
 
   // ---------- estado ----------
   if (!t.feitaEm) {

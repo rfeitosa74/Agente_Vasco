@@ -9,6 +9,7 @@ import { abrirModal, barra, chip, banner, toast } from '../../ui.js';
 import { montar as tRefazer } from '../../tools/refazer.js';
 import { fmtDiaLongo, parse, diffDays, fmtDia } from '../../util/dates.js';
 import { ESTAGIOS } from '../../core/planner.js';
+import { configFontes } from '../../pesquisa.js';
 import { tarefasDeHoje } from '../../core/tarefas.js';
 import { DISCIPLINAS } from '../../core/planner.js';
 
@@ -129,6 +130,7 @@ export default function hoje(ctx) {
       case 'episodio':
         return [
           h('a', { class: 'btn sm', href: '#/aluno/episodio' }, 'Roteiro'),
+          configFontes().pesquisaLivreAluno ? h('a', { class: 'btn sm', href: '#/aluno/descobrir?d=Ci%C3%AAncias' }, '🔎 Conferir fatos') : null,
           h('button', { class: 'btn sm' + (feito ? '' : ' amber'), onClick: () => { alternarCampo(data, 'episodio', 'Episódio gravado'); ctx.rerender(); } }, feito ? 'Desfazer' : `Gravei! ${xp ? '+15' : ''}`),
         ];
       case 'explica':
