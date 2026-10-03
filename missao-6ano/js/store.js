@@ -13,7 +13,7 @@ export const CONFIG_PADRAO = {
   aluno: 'Luan',
   tutor: 'Rubens',
   pinHash: null,
-  inicioBimestre4: '2026-10-19', // SUPOSIÇÃO: ajuste para a 1ª segunda-feira do 4º bimestre (Config)
+  inicioBimestre4: '2026-10-12', // 1ª segunda-feira da rampa (4º bimestre); editável em Configurações
   faseForcada: null,
   sprintMin: {},
   horarios: { acordar: '07:00', aquecimento: '07:30', missao: '07:45', episodio: '08:15', escola: '12:30', explica: '20:00', base: '20:30', dormir: '21:00', desafio: '09:00' },
@@ -48,7 +48,8 @@ function estadoInicial() {
     days: {},
     provas: [],
     erros: [],
-    cartas: CARTAS_INICIAIS.map((c) => novaCarta({ ...c, origem: 'inicial', hoje })),
+    // ids fixos: aparelhos diferentes geram o MESMO baralho inicial (senão a sincronização duplicaria as cartas)
+    cartas: CARTAS_INICIAIS.map((c, i) => ({ ...novaCarta({ ...c, origem: 'inicial', hoje }), id: `ini-${i}` })),
     perguntas: [],
     episodios: EPISODIOS_IDEIAS.map((e) => ({ ...e, status: 'ideia', gravadoEm: null })),
     ginasio: { faixa: 1, historico: [] },
@@ -142,6 +143,13 @@ export function mutateDay(data, fn) {
     for (const [k, v] of Object.entries(novoDia())) if (!(k in d)) d[k] = v;
     return fn(d, s);
   });
+}
+
+/** Troca o estado inteiro (usado pela sincronização). Não dispara nova sincronização. */
+export function substituirEstado(novo) {
+  state = mesclar(structuredClone(novo), estadoInicial());
+  salvar();
+  avisar({ sync: true });
 }
 
 export const hashPin = (pin) => String(hashStr(`missao6|${pin}`));

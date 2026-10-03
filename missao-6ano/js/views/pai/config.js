@@ -6,6 +6,8 @@ import { gerarIcs } from '../../core/ics.js';
 import { chip, confirmar, perguntarTexto, toast, baixarArquivo } from '../../ui.js';
 import { weekStart, addDays, fmtDia, dow } from '../../util/dates.js';
 import { sairDoPai } from '../../app.js';
+import * as sync from '../../sync.js';
+import { abrirModal } from '../../ui.js';
 
 export default function config(ctx) {
   const s = getState();
@@ -87,6 +89,43 @@ export default function config(ctx) {
   raiz.append(h('div', { class: 'card stack sm' }, h('h2', { style: { margin: 0 } }, 'Calendário (.ics)'),
     h('p', { class: 'small muted', style: { margin: 0 } }, 'Exporta a rotina completa como eventos semanais (fuso América/Fortaleza) para o Google Agenda, Apple Calendário ou Outlook. A primeira data precisa ser uma segunda-feira.'),
     h('div', { class: 'row' }, inicioIcs, h('button', { class: 'btn sm primary', onClick: () => { if (dow(inicioIcs.value) !== 1) { toast('Escolha uma segunda-feira.'); return; } baixarArquivo('Missao_6Ano_Rotina.ics', gerarIcs(getState().config, inicioIcs.value), 'text/calendar'); } }, 'Baixar .ics'))));
+
+  // ---------- sincronização ----------
+  const copiar = async (txt, msg) => { try { await navigator.clipboard.writeText(txt); toast(msg); } catch { toast('Copie manualmente: ' + txt); } };
+  const mostrarCodigo = (titulo = 'Código da família') => {
+    const cod = sync.formatarCodigo(sync.codigoAtual());
+    abrirModal(h('div', { class: 'stack' },
+      h('p', { class: 'muted small' }, 'Quem tem este código lê e altera os dados do Luan. Guarde como uma senha. Para conectar o outro aparelho, abra o link de pareamento nele (ou digite o código em Configurações → Sincronização).'),
+      h('div', { class: 'resp-box', style: { fontSize: '1.2rem', letterSpacing: '.08em', wordBreak: 'break-all' } }, cod),
+      h('div', { class: 'row' }, h('button', { class: 'btn primary', onClick: () => copiar(cod, 'Código copiado') }, 'Copiar código'), h('button', { class: 'btn', onClick: () => copiar(sync.linkDePareamento(), 'Link de pareamento copiado') }, 'Copiar link de pareamento'))), { titulo });
+  };
+  const st = sync.status();
+  const campoCodigo = h('input', { type: 'text', placeholder: 'XXXX-XXXX-XXXX-…', 'aria-label': 'Código da família', autocomplete: 'off' });
+  const falha = (e) => toast(String(e.message || e), { ms: 5000 });
+  const cardSync = h('div', { class: 'card stack sm' }, h('h2', { style: { margin: 0 } }, 'Sincronização entre aparelhos'));
+  if (!sync.ativo()) {
+    cardSync.append(
+      h('p', { class: 'small', style: { margin: 0 } }, 'Opcional. Liga o aparelho do Luan e o seu: o que um marca aparece no outro. Os dados passam a ser guardados também na nuvem (Supabase, servidor em São Paulo), protegidos por um código secreto de 160 bits que só você tem. Sem ativar, nada sai do aparelho.'),
+      h('div', { class: 'row' }, h('button', { class: 'btn primary', onClick: async () => {
+        if (!(await confirmar('Criar o código e enviar os dados deste aparelho para a nuvem? Depois você conecta o outro aparelho com o código.', { ok: 'Ativar sincronização' }))) return;
+        try { await sync.habilitar(sync.gerarCodigo()); re(); mostrarCodigo('Anote o código da família'); } catch (e) { falha(e); }
+      } }, '☁️ Ativar e criar código')),
+      h('div', { class: 'field' }, h('label', null, 'Já tenho um código (de outro aparelho)'), h('div', { class: 'row' }, h('div', { class: 'grow' }, campoCodigo), h('button', { class: 'btn', onClick: async () => {
+        const temDados = Object.keys(getState().days).length > 0;
+        if (temDados && !(await confirmar('Este aparelho já tem registros. Ao conectar, ele passa a usar os dados da nuvem e os registros daqui serão substituídos. Exporte um backup antes se quiser guardá-los. Continuar?', { ok: 'Conectar e substituir', perigo: true }))) return;
+        try { await sync.habilitar(campoCodigo.value, { entrar: true }); toast('Aparelho conectado'); re(); } catch (e) { falha(e); }
+      } }, 'Conectar'))));
+  } else {
+    cardSync.append(
+      h('div', { class: 'row' }, chip(st.fase === 'erro' ? 'com erro' : st.fase === 'sincronizando' ? 'sincronizando…' : 'ligada', st.fase === 'erro' ? 'bad' : 'ok'), st.ultimoOk ? h('span', { class: 'small muted' }, `última vez: ${new Date(st.ultimoOk).toLocaleString('pt-BR')}`) : null),
+      st.erro ? h('p', { class: 'small', style: { margin: 0, color: 'var(--bad)' } }, st.erro) : null,
+      h('p', { class: 'small muted', style: { margin: 0 } }, 'Sincroniza sozinha poucos segundos depois de cada marcação, ao abrir o app e a cada 45 s. Se os dois aparelhos mexerem em coisas diferentes, tudo é mantido; se mexerem exatamente na mesma coisa, vale a mudança deste aparelho.'),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn sm primary', onClick: async () => { await sync.agora(); re(); } }, 'Sincronizar agora'),
+        h('button', { class: 'btn sm', onClick: () => mostrarCodigo() }, 'Mostrar código e link'),
+        h('button', { class: 'btn sm danger', onClick: async () => { if (await confirmar('Desligar a sincronização neste aparelho? Os dados continuam aqui e na nuvem; este aparelho só deixa de enviar e receber.', { ok: 'Desligar', perigo: true })) { sync.desabilitar(); re(); } } }, 'Desligar neste aparelho')));
+  }
+  raiz.append(cardSync);
 
   // ---------- backup ----------
   const arq = h('input', { type: 'file', accept: 'application/json,.json', class: 'hidden', 'aria-label': 'Arquivo de backup' });

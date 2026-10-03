@@ -5,6 +5,7 @@ import { h, limpar } from './util/dom.js';
 import { toast, abrirModal, banner } from './ui.js';
 import { faseDe } from './core/phase.js';
 import { resumoSemana, corrente } from './core/xp.js';
+import * as sync from './sync.js';
 
 const root = document.getElementById('app');
 
@@ -102,7 +103,7 @@ function shellAluno(view) {
   const shell = h('div', { class: 'shell-aluno' },
     h('header', { class: 'topbar' },
       h('a', { class: 'brand', href: '#/aluno/hoje' }, h('img', { src: 'assets/icon.svg', alt: '' }), h('span', null, 'Missão 6º Ano')),
-      h('span', { class: 'grow' }), xpChip, h('span', { class: 'chip', id: 'corrente', hidden: true }),
+      h('span', { class: 'grow' }), h('span', { class: 'chip', id: 'synchip', hidden: true }), xpChip, h('span', { class: 'chip', id: 'corrente', hidden: true }),
       h('button', { class: 'btn ghost sm', 'aria-label': 'Área do pai', title: 'Área do pai', onClick: () => pedirPin(() => go('#/pai/painel')) }, '🔒')),
     !storageOk() ? h('div', { class: 'container' }, banner('aviso', 'Atenção', 'O navegador não está deixando salvar os dados neste modo. Feche a janela anônima ou libere o armazenamento.')) : null,
     conteudo,
@@ -119,12 +120,25 @@ function shellPai(view) {
       ...MENU_PAI.map(([id, rotulo, ico]) => h('a', { href: `#/pai/${id}`, 'aria-current': id === view ? 'page' : null }, h('span', { 'aria-hidden': 'true' }, ico), rotulo)),
       h('div', { class: 'sep' }),
       h('a', { href: '#/aluno/hoje', onClick: (e) => { e.preventDefault(); salvarModo('aluno'); go('#/aluno/hoje'); } }, h('span', { 'aria-hidden': 'true' }, '🚀'), 'Ver como Luan'),
-      h('a', { href: '#', onClick: (e) => { e.preventDefault(); sairDoPai(); } }, h('span', { 'aria-hidden': 'true' }, '🔒'), 'Sair (bloquear)')),
+      h('a', { href: '#', onClick: (e) => { e.preventDefault(); sairDoPai(); } }, h('span', { 'aria-hidden': 'true' }, '🔒'), 'Sair (bloquear)'),
+      h('div', { class: 'small', id: 'synctxt', style: { padding: '8px 12px', color: '#9fb0dc' } })),
     h('div', { class: 'pai-main' }, conteudo));
   return { shell, conteudo };
 }
 
+const ROTULO_SYNC = { ok: '☁️ sincronizado', sincronizando: '☁️ sincronizando…', erro: '⚠️ sem sincronizar', desligado: '' };
+function atualizarSync() {
+  const st = sync.status();
+  const ativa = sync.ativo();
+  const chip = document.getElementById('synchip');
+  if (chip) { chip.hidden = !ativa; chip.textContent = st.fase === 'erro' ? '⚠️' : '☁️'; chip.title = st.erro || ROTULO_SYNC[st.fase] || ''; }
+  const txt = document.getElementById('synctxt');
+  if (txt) txt.textContent = ativa ? (ROTULO_SYNC[st.fase] || '') + (st.fase === 'erro' ? ` (${st.erro})` : '') : 'Sem sincronização entre aparelhos';
+}
+sync.ouvir(atualizarSync);
+
 function atualizarChrome() {
+  atualizarSync();
   const chip = document.getElementById('xpchip');
   if (chip) {
     const s = getState();
@@ -153,8 +167,22 @@ function gate() {
 }
 
 // ---------- roteamento ----------
+async function parear(codigo) {
+  document.body.className = 't-aluno';
+  limpar(root).append(h('div', { class: 'gate' }, h('div', { class: 'gate-card stack' }, h('div', { class: 'big-emoji' }, '☁️'), h('h1', null, 'Conectando este aparelho…'), h('p', { class: 'muted' }, 'Buscando os dados da família na nuvem.'))));
+  try {
+    await sync.habilitar(codigo, { entrar: true });
+    toast('Aparelho conectado! Dados sincronizados.');
+    location.replace(location.pathname + location.search + '#/entrada');
+    render();
+  } catch (e) {
+    limpar(root).append(h('div', { class: 'gate' }, h('div', { class: 'gate-card stack' }, banner('erro', 'Não deu para conectar', String(e.message || e)), h('a', { class: 'btn amber', href: '#/entrada' }, 'Voltar'))));
+  }
+}
+
 async function render() {
   const { modo, view, params } = parseHash();
+  if (modo === 'parear') return parear(params.c);
   const salvo = modoSalvo();
   if (!modo || modo === 'entrada') {
     if (!modo && salvo === 'aluno') return go('#/aluno/hoje');

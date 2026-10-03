@@ -1,4 +1,12 @@
 // Construtor mínimo de DOM. Texto sempre entra como nó de texto (seguro contra injeção de HTML).
+// O append/prepend nativos transformam null/false em texto ("null") e listas em "a,b". Aqui ignoram vazios e achatam listas.
+for (const metodo of ['append', 'prepend']) {
+  const original = Element.prototype[metodo];
+  Element.prototype[metodo] = function (...nos) {
+    return original.apply(this, nos.flat(Infinity).filter((n) => n != null && n !== false));
+  };
+}
+
 export function h(tag, props, ...filhos) {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(props || {})) {
