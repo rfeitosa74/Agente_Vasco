@@ -10,7 +10,7 @@ const KEY = 'missao6:v1';
 export const VERSAO = 1;
 
 export const CONFIG_PADRAO = {
-  aluno: 'Luan Carlos',
+  aluno: 'Luan',
   tutor: 'Rubens',
   pinHash: null,
   inicioBimestre4: '2026-10-19', // SUPOSIÇÃO: ajuste para a 1ª segunda-feira do 4º bimestre (Config)

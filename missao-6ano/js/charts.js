@@ -38,8 +38,8 @@ export function graficoBarras({ rotulos, series, titulo, empilhado = false, linh
     if (!empilhado && series.length === 1 && totais[i] > 0) barras += `<text x="${cx}" y="${M.t + ih - (totais[i] / max) * ih - 4}" text-anchor="middle" style="fill:var(--ink);font-weight:700">${esc(fmt ? fmt(totais[i]) : totais[i])}</text>`;
     barras += `<text x="${cx}" y="${H - 8}" text-anchor="middle">${esc(r)}</text>`;
   });
-  const refs = linhasRef.map((l) => { const y = M.t + ih - (l.v / max) * ih; return `<line x1="${M.l}" x2="${W - M.r}" y1="${y}" y2="${y}" stroke="${l.cor}" stroke-width="1.5" stroke-dasharray="5 4"/><text x="${W - M.r}" y="${y - 4}" text-anchor="end" style="fill:${l.cor};font-weight:700">${esc(l.rotulo)}</text>`; }).join('');
-  return svgDe(`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(titulo)}"><title>${esc(titulo)}</title>${eixoY(max)}${barras}${refs}</svg>`);
+  const refs = linhasRef.map((l) => { const y = M.t + ih - (l.v / max) * ih; return `<line x1="${M.l}" x2="${W - M.r}" y1="${y}" y2="${y}" stroke="${l.cor}" stroke-width="1.5" stroke-dasharray="5 4"/><text x="${M.l + 4}" y="${y - 4}" text-anchor="start" style="fill:${l.cor};font-weight:700">${esc(l.rotulo)}</text>`; }).join('');
+  return svgDe(`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(titulo)}"><title>${esc(titulo)}</title>${eixoY(max, max <= 8 && Number.isInteger(max) ? max : 4)}${barras}${refs}</svg>`);
 }
 
 /** Linha com pontos. pontos: [{x: rótulo, y: número|null}] ; refs: linhas de referência */

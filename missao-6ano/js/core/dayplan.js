@@ -48,12 +48,13 @@ export function planoDoDia(state, data) {
   if (d === 0) return { ...base, tipo: 'folga', titulo: 'Domingo: folga total' };
   if (cfg.diasLivres.includes(data)) return { ...base, tipo: 'livre', titulo: 'Dia livre (feriado/sem aula de reforço)' };
 
+  const janela = fase.base ? BLOCO('janela', 'Janela limpa', h.acordar, 30, { detalhe: 'Sem tela: café, banho, mochila, conversa' }) : null;
   const aquecimento = BLOCO('aquecimento', 'Aquecimento', h.aquecimento, 15, { detalhe: 'Caligrafia + 5 min do Ginásio de Cálculo' });
   const explica = fase.xp ? BLOCO('explica', 'Me explica', h.explica, 5, { detalhe: '5 minutos de conversa com o pai' }) : null;
   const baseCarga = fase.base ? BLOCO('base', 'Celular na base', h.base, 0, { detalhe: 'O celular dorme na sala' }) : null;
 
   if (d === 6) {
-    const blocos = [aquecimento];
+    const blocos = [janela, aquecimento].filter(Boolean);
     if (fase.desafio) blocos.push(BLOCO('desafio', 'Desafio do Pai', h.desafio, 25, { detalhe: 'Quiz com o pai + soma do XP' }));
     if (explica) blocos.push(explica);
     if (baseCarga) blocos.push(baseCarga);
@@ -103,7 +104,7 @@ export function planoDoDia(state, data) {
   const discPonte = primeira && ['História', 'Geografia'].includes(primeira.disciplina) ? primeira.disciplina : sprints.find((s) => ['História', 'Geografia'].includes(s.disciplina))?.disciplina;
   const ponte = discPonte ? pontePara(data, discPonte, state.days[data]?.ponteOffset || 0) : null;
 
-  const blocos = [aquecimento];
+  const blocos = [janela, aquecimento].filter(Boolean);
   if (sprints.length) {
     blocos.push(BLOCO('missao', 'Missão do Dia', h.missao, sprints.length * minutos + (sprints.length > 1 ? 5 : 0), { detalhe: `${sprints.length} × ${minutos} min${sprints.length > 1 ? ' + 5 de pausa' : ''}` }));
   }

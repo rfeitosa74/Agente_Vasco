@@ -36,7 +36,7 @@ export default function hoje(ctx) {
     const prox = proximoNivel(r.total, n);
     raiz.append(h('div', { class: 'card stack sm' },
       h('div', { class: 'row between' }, h('h3', { style: { margin: 0 } }, 'Sua semana'), h('b', { style: { color: 'var(--amber)', fontSize: '1.2rem' } }, `⭐ ${r.total} XP`)),
-      barra(r.total, Math.max(n.ouro * 1.1, r.total), [{ v: n.bronze, rotulo: `Bronze ${n.bronze}` }, { v: n.prata, rotulo: `Prata ${n.prata}` }, { v: n.ouro, rotulo: `Ouro ${n.ouro}` }]),
+      barra(r.total, Math.max(n.ouro * 1.1, r.total), [{ v: n.bronze, rotulo: `🥉 ${n.bronze}` }, { v: n.prata, rotulo: `🥈 ${n.prata}` }, { v: n.ouro, rotulo: `🥇 ${n.ouro}` }]),
       h('p', { class: 'small muted', style: { margin: 0 } }, r.nivel ? `Nível ${NIVEL_NOME[r.nivel]} conquistado!${prox ? ` Faltam ${prox.falta} XP para o ${NIVEL_NOME[prox.chave]}.` : ' Semana Ouro!'}` : `Faltam ${prox.falta} XP para o Bronze.`)));
   }
 
@@ -80,7 +80,7 @@ export default function hoje(ctx) {
 
   // ===== helpers de bloco =====
   function blocoEl(b, num) {
-    const cls = { aquecimento: 'b1', missao: 'b2', episodio: 'b3', desafio: 'b4', explica: 'b4', base: 'b1' }[b.id] || 'b1';
+    const cls = { janela: 'b4', aquecimento: 'b1', missao: 'b2', episodio: 'b3', desafio: 'b4', explica: 'b4', base: 'b1' }[b.id] || 'b1';
     const feito = estaFeito(b.id);
     const el = h('div', { class: `bloco ${cls}${feito ? ' done' : ''}` },
       h('span', { class: 'hora' }, b.hora),
@@ -90,6 +90,7 @@ export default function hoje(ctx) {
   }
 
   function estaFeito(id) {
+    if (id === 'janela') return dia.janelaLimpa;
     if (id === 'aquecimento') return dia.caligrafia;
     if (id === 'missao') return plano.sprints.length > 0 && plano.sprints.filter((x) => dia.sprints[x.idx]?.ok).length >= (dia.diaDificil ? 1 : plano.sprints.length);
     if (id === 'episodio') return dia.episodio;
@@ -132,6 +133,8 @@ export default function hoje(ctx) {
         return [h('button', { class: 'btn sm' + (feito ? '' : ' amber'), onClick: () => (feito ? (alternarCampo(data, 'explicou', ''), ctx.rerender()) : escolherTema()) }, feito ? 'Desfazer' : `Expliquei sem olhar +20`)];
       case 'desafio':
         return [h('button', { class: 'btn sm' + (feito ? '' : ' amber'), onClick: () => { alternarCampo(data, 'desafio', 'Desafio do Pai'); ctx.rerender(); } }, feito ? 'Desfazer' : `Fiz o desafio${xp ? ' +25' : ''}`)];
+      case 'janela':
+        return [h('button', { class: 'btn sm' + (feito ? '' : ' amber'), onClick: () => { alternarCampo(data, 'janelaLimpa', ''); ctx.rerender(); } }, feito ? 'Desfazer' : 'Fiquei sem tela ✓')];
       case 'base':
         return [h('button', { class: 'btn sm' + (feito ? '' : ' amber'), onClick: () => { alternarCampo(data, 'base', ''); ctx.rerender(); } }, feito ? 'Desfazer' : 'Celular na base ✓')];
       default: return [];

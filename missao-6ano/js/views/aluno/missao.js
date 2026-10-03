@@ -26,6 +26,14 @@ function relogio() {
   return { el, atualizar: (r, total, rotulo) => { txt.textContent = mmss(r); prg.setAttribute('stroke-dashoffset', (C * (1 - r / total)).toFixed(2)); rot.textContent = rotulo || ''; } };
 }
 
+/** Barra de tempo compacta e fixa no topo: o relógio gigante empurraria a ferramenta para fora da tela. */
+function barraTempo() {
+  const txt = h('b', { class: 'tb-time', role: 'timer', 'aria-live': 'off' }, '00:00');
+  const fill = h('i', { style: { width: '100%' } });
+  const el = h('div', { class: 'timer-bar' }, h('div', { class: 'row between' }, h('span', { class: 'small muted' }, '⏱ Sprint em andamento'), txt), h('div', { class: 'bar' }, fill));
+  return { el, atualizar: (r, total) => { txt.textContent = mmss(r); fill.style.width = `${Math.max(0, (r / total) * 100)}%`; } };
+}
+
 function ferramenta(f, sprint, data, ctx) {
   switch (f.id) {
     case 'cartas': return tCartas({ hoje: data, filtro: (c) => c.disciplina === f.disciplina });
@@ -121,13 +129,14 @@ export default function missao(ctx) {
       corpo.append(h('div', { class: 'timer-wrap' }, r.el, h('p', { class: 'muted center' }, 'Água, banheiro, andar. Nunca tela.')),
         h('button', { class: 'btn block', onClick: () => { cancelar(); ctx.rerender(); } }, 'Pular a pausa'));
     } else if (rodando) {
-      const r = relogio();
-      relogios.push((seg) => r.atualizar(seg, timerHoje.total, 'sprint'));
-      corpo.append(h('div', { class: 'timer-wrap' }, r.el, h('p', { class: 'muted center small' }, 'Celular virado para baixo. Tocou? Você para.')),
-        h('ol', { class: 'steps' }, ...s.passos.map((p) => h('li', null, p))));
+      const r = barraTempo();
+      relogios.push((seg) => r.atualizar(seg, timerHoje.total));
       const fer = (s.ferramentas || []).map((f) => ferramenta(f, s, data, ctx)).filter(Boolean);
-      if (fer.length) corpo.append(h('hr', { style: { border: 0, borderTop: '1px solid var(--line)', width: '100%' } }), ...fer);
-      corpo.append(h('button', { class: 'btn ghost sm', onClick: async () => { if (await confirmar('Interromper o sprint? Ele não conta como concluído.', { ok: 'Interromper', perigo: true })) { cancelar(); ctx.rerender(); } } }, 'Interromper o sprint'));
+      corpo.append(r.el,
+        fer.length ? h('div', { class: 'stack lg' }, ...fer) : null,
+        h('details', { class: 'acc', open: !fer.length }, h('summary', null, 'Os passos deste sprint'), h('div', { class: 'acc-body' }, h('ol', { class: 'steps' }, ...s.passos.map((p) => h('li', null, p))))),
+        h('p', { class: 'muted center small' }, 'Celular virado para baixo. Tocou? Você para — mesmo no meio.'),
+        h('button', { class: 'btn ghost sm', onClick: async () => { if (await confirmar('Interromper o sprint? Ele não conta como concluído.', { ok: 'Interromper', perigo: true })) { cancelar(); ctx.rerender(); } } }, 'Interromper o sprint'));
     } else {
       corpo.append(
         h('ol', { class: 'steps' }, ...s.passos.map((p) => h('li', null, p))),

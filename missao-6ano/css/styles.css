@@ -164,6 +164,10 @@ textarea { min-height: 84px; resize: vertical; }
 .timer-big { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(5, 10, 36, .94); text-align: center; padding: 24px; }
 .timer-big h2 { font-size: clamp(2.2rem, 10vw, 4rem); margin-bottom: .2em; }
 
+.timer-bar { position: sticky; top: 0; z-index: 5; padding: 10px 12px; margin: -4px -4px 0; border-radius: 12px; background: #101c4d; border: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; box-shadow: 0 6px 16px rgba(0, 0, 0, .35); }
+.timer-bar .tb-time { font-size: 2rem; line-height: 1; font-variant-numeric: tabular-nums; color: var(--amber); }
+body:not(.t-aluno) .timer-bar { background: var(--surface); }
+
 /* ---------- teclado numérico ---------- */
 .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-width: 320px; margin: 0 auto; }
 .keypad button { min-height: 58px; font-size: 1.4rem; font-weight: 700; border-radius: 14px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); cursor: pointer; }
@@ -233,7 +237,11 @@ details.acc > summary { cursor: pointer; padding: 12px 14px; font-weight: 700; l
 details.acc > summary::after { content: '＋'; color: var(--muted); } details.acc[open] > summary::after { content: '－'; }
 details.acc > .acc-body { padding: 0 14px 14px; }
 @media print {
-  .side, .bottomnav, .topbar, .no-print, #toasts { display: none !important; }
-  .shell-pai { display: block; } body { background: #fff; color: #000; } .card { box-shadow: none; break-inside: avoid; }
+  .side, .bottomnav, .topbar, .no-print, #toasts, #overlay { display: none !important; }
+  .shell-pai { display: block; } .shell-aluno { padding-bottom: 0; }
+  body, body.t-aluno, html:has(body.t-aluno) { background: #fff !important; color: #111 !important; }
+  .t-aluno { --bg: #fff; --surface: #fff; --surface-2: #f3f4f8; --ink: #111; --muted: #444; --line: #b9bfd0; --amber: #b45f06; --brand: #1d3a8a; --ok: #0b6b49; --warn-soft: #fff1dc; --b1: #eaf0fd; --b1i: #1d3a8a; --b2: #fff1dc; --b2i: #7a3d00; --b3: #f1eafb; --b3i: #5b2f93; --b4: #e3f4ec; --b4i: #0b6b49; --bad-soft: #fde8e6; --ok-soft: #e3f4ec; --info-soft: #e8eefc; }
+  .card { box-shadow: none; break-inside: avoid; } .container { max-width: none; padding: 0; }
+  details.acc > .acc-body { display: block; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

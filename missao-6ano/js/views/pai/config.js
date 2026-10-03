@@ -22,7 +22,7 @@ export default function config(ctx) {
   const nomeT = h('input', { type: 'text', value: c.tutor, 'aria-label': 'Nome do tutor' });
   raiz.append(h('div', { class: 'card stack' }, h('h2', { style: { margin: 0 } }, 'Quem usa'),
     h('div', { class: 'form-row' }, h('div', { class: 'field' }, h('label', null, 'Aluno'), nomeA), h('div', { class: 'field' }, h('label', null, 'Tutor (pai)'), nomeT)),
-    h('button', { class: 'btn sm', onClick: () => { mutate((st) => { st.config.aluno = nomeA.value.trim() || 'Luan Carlos'; st.config.tutor = nomeT.value.trim() || 'Rubens'; }); salvar(); } }, 'Salvar nomes')));
+    h('button', { class: 'btn sm', onClick: () => { mutate((st) => { st.config.aluno = nomeA.value.trim() || 'Luan'; st.config.tutor = nomeT.value.trim() || 'Rubens'; }); salvar(); } }, 'Salvar nomes')));
 
   // ---------- PIN ----------
   raiz.append(h('div', { class: 'card stack sm' }, h('h2', { style: { margin: 0 } }, 'PIN da área do pai'),

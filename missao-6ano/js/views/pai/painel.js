@@ -44,7 +44,7 @@ export default function painel(ctx) {
   }
 
   // ---- hoje ----
-  const feitoDe = (id) => ({ aquecimento: dia.caligrafia, missao: plano.sprints.length && plano.sprints.every((x) => dia.sprints[x.idx]?.ok), episodio: dia.episodio, explica: dia.explicou, desafio: dia.desafio, base: dia.base }[id]);
+  const feitoDe = (id) => ({ janela: dia.janelaLimpa, aquecimento: dia.caligrafia, missao: plano.sprints.length && plano.sprints.every((x) => dia.sprints[x.idx]?.ok), episodio: dia.episodio, explica: dia.explicou, desafio: dia.desafio, base: dia.base }[id]);
   const recado = h('textarea', { 'aria-label': 'Recado do dia', placeholder: 'Escreva a Missão do Dia ou um recado para o Luan (ele vê na tela Hoje)…', style: { minHeight: '64px' } }, dia.recado);
   raiz.append(h('div', { class: 'card stack' },
     h('div', { class: 'row between' }, h('h2', { style: { margin: 0 } }, 'Hoje do Luan'), h('a', { class: 'btn sm primary', href: '#/pai/hoje' }, 'Abrir o dia completo')),
@@ -64,7 +64,7 @@ export default function painel(ctx) {
   ];
   if (fase.xp) stats.unshift(h('div', { class: 'stat' }, h('span', null, 'XP da semana'), h('b', null, `⭐ ${r.total}`), h('small', { class: 'muted' }, r.nivel ? NIVEL_NOME[r.nivel] : 'sem nível ainda')));
   raiz.append(h('div', { class: 'grid c4' }, ...stats));
-  if (fase.xp) raiz.append(h('div', { class: 'card flat' }, barra(r.total, Math.max(s.config.niveis.ouro * 1.1, r.total), [{ v: s.config.niveis.bronze, rotulo: 'Bronze' }, { v: s.config.niveis.prata, rotulo: 'Prata' }, { v: s.config.niveis.ouro, rotulo: 'Ouro' }])));
+  if (fase.xp) raiz.append(h('div', { class: 'card flat' }, barra(r.total, Math.max(s.config.niveis.ouro * 1.1, r.total), [{ v: s.config.niveis.bronze, rotulo: '🥉 ' + s.config.niveis.bronze }, { v: s.config.niveis.prata, rotulo: '🥈 ' + s.config.niveis.prata }, { v: s.config.niveis.ouro, rotulo: '🥇 ' + s.config.niveis.ouro }])));
 
   // ---- provas ----
   const provas = s.provas.filter((p) => !p.cancelada && p.data >= hoje).sort((a, b) => (a.data < b.data ? -1 : 1)).slice(0, 5);

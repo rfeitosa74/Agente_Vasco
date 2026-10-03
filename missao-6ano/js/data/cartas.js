@@ -2,6 +2,8 @@
 // O tutor completa com os capítulos reais do bimestre (aba Cartas). Aqui ficam só fatos consolidados.
 const H = (tag, frente, verso) => ({ disciplina: 'História', tag, frente, verso });
 const G = (tag, frente, verso) => ({ disciplina: 'Geografia', tag, frente, verso });
+const M = (tag, frente, verso) => ({ disciplina: 'Matemática', tag, frente, verso });
+const P = (tag, frente, verso) => ({ disciplina: 'Português', tag, frente, verso });
 
 export const CARTAS_INICIAIS = [
   // ----- História · Pré-História -----
@@ -49,4 +51,38 @@ export const CARTAS_INICIAIS = [
   G('Relevo e hidrografia', 'Qual é a maior montanha do Sistema Solar?', 'O Monte Olimpo, em Marte (~22 km): mais de duas vezes e meia o Everest (8,8 km).'),
   G('Relevo e hidrografia', 'Quais luas têm oceanos de água líquida sob o gelo?', 'Europa (de Júpiter) e Encélado (de Saturno).'),
   G('Relevo e hidrografia', 'O que é uma bacia hidrográfica?', 'Área drenada por um rio principal e seus afluentes.'),
+
+  // ----- Matemática · geometria (a matéria mudou de nomear para CALCULAR) -----
+  M('Geometria', 'Como se calcula o perímetro de um retângulo?', '2 × (base + altura): é a soma de todos os lados (contorno). Unidade: cm, m…'),
+  M('Geometria', 'Como se calcula a área de um retângulo? E de um quadrado?', 'Retângulo: base × altura. Quadrado: lado × lado (l²). Unidade: cm², m²…'),
+  M('Geometria', 'Como se calcula a área de um triângulo?', 'base × altura ÷ 2. Exemplo: base 8 e altura 5 → 8 × 5 ÷ 2 = 20.'),
+  M('Geometria', 'Qual a diferença entre perímetro e área?', 'Perímetro é o contorno (comprimento, em cm). Área é a superfície (em cm²).'),
+  M('Geometria', 'Quanto somam os ângulos internos de um triângulo? E de um quadrilátero?', 'Triângulo: 180°. Quadrilátero: 360°.'),
+  M('Geometria', 'Como classificar ângulos: reto, agudo, obtuso e raso?', 'Reto: 90°. Agudo: menor que 90°. Obtuso: entre 90° e 180°. Raso: 180°.'),
+  M('Geometria', 'O que são ângulos complementares e suplementares?', 'Complementares somam 90°. Suplementares somam 180°.'),
+  // ----- Matemática · números -----
+  M('Números', 'O que é o mmc e o mdc?', 'mmc: menor múltiplo comum (diferente de zero). mdc: maior divisor comum. Ex.: mmc(6, 8) = 24; mdc(12, 18) = 6.'),
+  M('Números', 'Critérios de divisibilidade por 2, 3, 5, 9 e 10', '2: termina em número par. 3: soma dos algarismos divisível por 3. 5: termina em 0 ou 5. 9: soma dos algarismos divisível por 9. 10: termina em 0.'),
+  M('Números', 'O que é um número primo? O 1 é primo?', 'Tem exatamente dois divisores: 1 e ele mesmo (2, 3, 5, 7, 11, 13…). O 1 NÃO é primo.'),
+  M('Números', 'Qual a ordem das operações em uma expressão?', 'Parênteses primeiro; depois potências; depois × e ÷ (da esquerda para a direita); por último + e −.'),
+  M('Números', 'O que é potenciação? Quanto é a¹ e a⁰?', 'Multiplicar a base por ela mesma, o expoente de vezes: 2⁴ = 2×2×2×2 = 16. a¹ = a e a⁰ = 1 (a ≠ 0).'),
+  M('Números', 'Equivalência entre unidades de medida', '1 km = 1.000 m · 1 m = 100 cm · 1 kg = 1.000 g · 1 L = 1.000 mL · 1 h = 60 min.'),
+  // ----- Matemática · frações, decimais, porcentagem -----
+  M('Frações', 'Como achar frações equivalentes?', 'Multiplique (ou divida) numerador e denominador pelo MESMO número. 1/2 = 2/4 = 3/6.'),
+  M('Frações', 'Como somar frações?', 'Mesmo denominador: soma os numeradores e mantém o denominador (2/7 + 3/7 = 5/7). Denominadores diferentes: antes, iguale os denominadores (pelo mmc).'),
+  M('Frações', 'Como calcular uma fração de um número? (3/4 de 48)', 'Divida pelo denominador e multiplique pelo numerador: 48 ÷ 4 = 12; 12 × 3 = 36.'),
+  M('Frações', 'Como multiplicar frações?', 'Numerador × numerador e denominador × denominador: 2/3 × 4/5 = 8/15.'),
+  M('Decimais', 'Como somar e subtrair números decimais?', 'Alinhe a vírgula embaixo da vírgula (complete com zeros se precisar) e some/subtraia normalmente.'),
+  M('Decimais', 'O que acontece ao multiplicar ou dividir por 10, 100, 1.000?', 'Multiplicar: a vírgula anda para a DIREITA. Dividir: a vírgula anda para a ESQUERDA (uma casa por zero).'),
+  M('Porcentagem', 'Como calcular 50%, 25% e 10% de um valor?', '50% = metade (÷2). 25% = um quarto (÷4). 10% = divide por 10. 1% = divide por 100.'),
+  // ----- Português -----
+  P('Classes de palavras', 'O que é substantivo? E adjetivo?', 'Substantivo nomeia seres, objetos, lugares, sentimentos (casa, Luan, alegria). Adjetivo dá característica ao substantivo (casa GRANDE).'),
+  P('Classes de palavras', 'O que é verbo?', 'Palavra que indica ação, estado ou fenômeno da natureza (correr, estar, chover). Varia em tempo, modo, pessoa e número.'),
+  P('Classes de palavras', 'Substantivo próprio × comum; concreto × abstrato', 'Próprio: nome específico, com maiúscula (São Luís). Comum: nome geral (cidade). Concreto: existe por si (mesa). Abstrato: depende de outro (saudade).'),
+  P('Ortografia', 'Sílaba tônica: oxítona, paroxítona e proparoxítona', 'Oxítona: tônica é a última (café). Paroxítona: a penúltima (mesa). Proparoxítona: a antepenúltima (música) — todas levam acento.'),
+  P('Ortografia', 'Ditongo, tritongo e hiato', 'Ditongo: vogal + semivogal na mesma sílaba (pai). Tritongo: três sons na mesma sílaba (Paraguai). Hiato: vogais em sílabas separadas (sa-ú-de).'),
+  P('Texto', 'Narrador-observador × narrador-personagem', 'Observador: conta em 3ª pessoa, de fora (“ele foi”). Personagem: faz parte da história e conta em 1ª pessoa (“eu fui”).'),
+  P('Texto', 'Sentido denotativo × conotativo', 'Denotativo: sentido literal, do dicionário. Conotativo: sentido figurado (“ele tem um coração de ouro”).'),
+  P('Texto', 'Sinônimos e antônimos', 'Sinônimos têm significado parecido (rápido/veloz). Antônimos têm significado oposto (rápido/lento).'),
+  P('Pontuação', 'Quando usar a vírgula?', 'Para separar itens de uma enumeração, o vocativo (“Luan, venha cá”), o aposto e expressões explicativas.'),
 ];
