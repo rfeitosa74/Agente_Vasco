@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Manual de uso — Missão 6º Ano</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 18mm; }
+  :root { --brand: #1d3a8a; --amber: #b45f06; --ink: #1a2238; --muted: #5a6480; --line: #d9deec; --soft: #f3f5fb; --ok: #0b6b49; }
+  * { box-sizing: border-box; }
+  body { font: 10.5pt/1.5 "Segoe UI", "DejaVu Sans", Arial, sans-serif; color: var(--ink); margin: 0; }
+  h1, h2, h3 { line-height: 1.2; color: var(--brand); }
+  h1 { font-size: 22pt; margin: 0 0 6mm; }
+  h2 { font-size: 15pt; margin: 0 0 3mm; padding-bottom: 2mm; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 11.5pt; margin: 5mm 0 1.5mm; color: var(--ink); }
+  p { margin: 0 0 2.5mm; }
+  ul, ol { margin: 0 0 3mm; padding-left: 5.5mm; } li { margin-bottom: 1mm; }
+  section { margin-top: 9mm; } section h2 { break-after: avoid; } h3 { break-after: avoid; }
+  .nova { break-before: page; margin-top: 0; }
+  .capa { margin-top: 0; break-after: page; min-height: 255mm; display: flex; flex-direction: column; justify-content: center; text-align: center; background: linear-gradient(160deg, #14295f, #2a4fb0); color: #fff; margin: -16mm -15mm; padding: 20mm; }
+  .capa h1 { color: #fff; font-size: 34pt; } .capa p { font-size: 13pt; } .capa small { opacity: .8; }
+  .capa .tag { display: inline-block; background: #f6b042; color: #3a2400; font-weight: 700; border-radius: 99px; padding: 1.5mm 6mm; margin: 6mm auto; }
+  .box { border-left: 4px solid var(--brand); background: #eaf0fd; padding: 2.5mm 4mm; border-radius: 0 6px 6px 0; margin: 3mm 0; break-inside: avoid; }
+  .box.dica { border-color: var(--ok); background: #e3f4ec; } .box.aviso { border-color: var(--amber); background: #fff1dc; }
+  .box b:first-child { display: block; margin-bottom: .5mm; }
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9.5pt; break-inside: avoid; }
+  th, td { border: 1px solid var(--line); padding: 1.6mm 2.4mm; text-align: left; vertical-align: top; } th { background: var(--soft); }
+  figure { margin: 3mm 0; break-inside: avoid; text-align: center; }
+  figure img { max-width: 100%; border: 1px solid var(--line); border-radius: 6px; }
+  figcaption { font-size: 8.5pt; color: var(--muted); margin-top: 1mm; }
+  .cut { overflow: hidden; border: 1px solid var(--line); border-radius: 6px; } .cut img { border: 0; border-radius: 0; display: block; width: 100%; }
+  .phones { display: flex; gap: 4mm; justify-content: center; align-items: flex-start; margin: 3mm 0; break-inside: avoid; }
+  .phones figure { margin: 0; width: 52mm; } .phones .cut { height: 105mm; }
+  .phones .cut.tall { height: 120mm; }
+  .passo { display: flex; gap: 3mm; margin-bottom: 2mm; break-inside: avoid; } .passo > b { flex: none; width: 7mm; height: 7mm; border-radius: 50%; background: var(--brand); color: #fff; text-align: center; line-height: 7mm; font-size: 9.5pt; }
+  .toc li { margin-bottom: 1.5mm; } .toc { font-size: 11pt; }
+  kbd, .btn { display: inline-block; background: var(--soft); border: 1px solid var(--line); border-radius: 5px; padding: 0 2mm; font-size: 9.5pt; font-weight: 600; white-space: nowrap; }
+  .duas { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+</style>
+</head>
+<body>
+
+<section class="capa">
+  <div style="font-size: 44pt">🚀</div>
+  <h1>Missão 6º Ano</h1>
+  <p>Manual de uso</p>
+  <div class="tag">Para o pai (tutor) e para o Luan</div>
+  <p>Rotina de estudos, dever de casa e fontes online confiáveis<br>em um só aplicativo — no celular, no tablet ou no computador.</p>
+  <small>Versão do 4º bimestre · 2026<br>As telas mostradas usam dados de exemplo.</small>
+</section>
+
+<section class="nova">
+  <h1>Sumário</h1>
+  <ol class="toc">
+    <li><b>Visão geral</b> — o que é e como o dia funciona</li>
+    <li><b>Primeiros passos</b> — publicar, instalar, PIN, ligar os dois aparelhos</li>
+    <li><b>O dia do Luan</b> — Hoje, Missão, Cálculo, Cartas, Eu</li>
+    <li><b>Dever de casa</b> — receber do WhatsApp, fazer, conferir</li>
+    <li><b>Fontes online confiáveis</b> — Descobrir, Pesquisar, biblioteca, offline</li>
+    <li><b>Área do pai</b> — Painel, Hoje, Semana e provas, Erros, Matemática, Progresso e mais</li>
+    <li><b>Sincronização e backup</b></li>
+    <li><b>Rotina sugerida</b> — 15 minutos por dia, 30 no sábado</li>
+    <li><b>Dúvidas e problemas comuns</b></li>
+    <li><b>Privacidade e limites</b></li>
+  </ol>
+  <div class="box"><b>Como usar este manual</b>Se tiver pouca pressa, leia só os capítulos 1, 2 e 4 (cerca de 10 minutos): são os que fazem o aplicativo funcionar no dia a dia. Os demais são para consulta.</div>
+</section>
+
+<section class="nova">
+  <h2>1. Visão geral</h2>
+  <p>O <b>Missão 6º Ano</b> transforma o plano de estudos do Luan em um aplicativo. A ideia central é simples: <b>poucos minutos, bem feitos, todos os dias</b> — e o pai enxergando o que está acontecendo, sem precisar ser professor de tudo.</p>
+  <div class="duas">
+    <div><h3>🚀 Modo Luan</h3><p>Telas grandes, um toque por passo. Mostra o que fazer agora: aquecimento, missão do dia, dever de casa, “me explica”. Ganha XP, sobe de nível e cuida da própria sequência de dias.</p></div>
+    <div><h3>🔒 Modo Pai</h3><p>Para preparar a semana, receber as tarefas da escola, corrigir, ver gráficos e ajustar o rumo. Pode ter PIN para o Luan não entrar por engano.</p></div>
+  </div>
+  <h3>O dia em quatro blocos (a “linha central”, que nunca muda)</h3>
+  <table>
+    <tr><th>Bloco</th><th>O que é</th><th>Quanto</th></tr>
+    <tr><td>1 · Aquecimento</td><td>Caligrafia + Ginásio de Cálculo (contas com cronômetro)</td><td>≈ 10 min</td></tr>
+    <tr><td>2 · Missão do Dia</td><td>Dois sprints de 12 minutos com pausa de 5. A matéria muda a cada dia (seg. História … sex. Português) ou segue o ciclo da prova</td><td>≈ 30 min</td></tr>
+    <tr><td>3 · Episódio</td><td>Gravar um minuto do canal de astronomia do Luan, explicando o que aprendeu</td><td>≈ 10 min</td></tr>
+    <tr><td>4 · Desafio do Pai</td><td>Sábado: quiz de revisão feito pelo pai, com cartas, erros e problemas</td><td>≈ 20 min</td></tr>
+  </table>
+  <p>A <b>noite</b> tem o <b>dever de casa</b> (18h30), o <b>“Me explica”</b> (20h, cinco minutos explicando para o pai sem olhar o caderno) e o <b>celular na base</b> (20h30).</p>
+  <h3>Por que funciona</h3>
+  <ul>
+    <li><b>Puxar, não reler</b>: cartas, “tente lembrar antes de virar” e “explique sem olhar” fixam muito mais do que ler de novo.</li>
+    <li><b>Ciclo D-3 antes das provas</b>: 3 dias antes fabricar cartas; 2 dias, puxar; 1 dia, só o que ficou vermelho; no dia da prova, não estudar. O aplicativo distribui isso sozinho.</li>
+    <li><b>Esforço, não nota</b>: o XP mede o que o Luan controla (fazer, repetir, explicar). A nota é consequência.</li>
+    <li><b>Sem aumentar as horas</b>: o aplicativo avisa quando a noite fica pesada demais.</li>
+  </ul>
+  <div class="phones" style="margin-top:4mm">
+    <figure><div class="cut tall"><img src="img/20_hoje.jpg" alt=""></div><figcaption>Tela “Hoje” do Luan</figcaption></figure>
+    <figure style="width:96mm"><div class="cut" style="height:120mm"><img src="img/14_pai_painel.jpg" alt=""></div><figcaption>Painel do pai</figcaption></figure>
+  </div>
+</section>
+
+<section>
+  <h2>2. Primeiros passos</h2>
+  <h3>2.1 Publicar o aplicativo (uma vez só)</h3>
+  <p>O aplicativo é um site comum. Para abrir no celular, ele precisa ficar em um endereço de internet:</p>
+  <div class="passo"><b>1</b><div>Descompacte o arquivo <kbd>missao-6ano-site.zip</kbd>. Dentro da pasta deve aparecer o <kbd>index.html</kbd>.</div></div>
+  <div class="passo"><b>2</b><div>Entre em <kbd>app.netlify.com</kbd> (conta gratuita) → <kbd>Add new site</kbd> → <kbd>Deploy manually</kbd> e <b>arraste a pasta</b> para a área indicada.</div></div>
+  <div class="passo"><b>3</b><div>O Netlify mostra o endereço do site (algo como <i>nome.netlify.app</i>). Guarde-o. Para atualizar no futuro, arraste a pasta nova no mesmo site, em <kbd>Deploys</kbd>.</div></div>
+  <h3>2.2 Instalar no celular</h3>
+  <ul>
+    <li><b>Android (Chrome)</b>: menu ⋮ → <kbd>Instalar app</kbd> ou <kbd>Adicionar à tela inicial</kbd>.</li>
+    <li><b>iPhone/iPad (Safari)</b>: botão Compartilhar → <kbd>Adicionar à Tela de Início</kbd>.</li>
+  </ul>
+  <p>Instalado, o aplicativo abre como um app qualquer, funciona sem internet e o navegador não apaga os dados por falta de uso.</p>
+  <h3>2.3 Entrar</h3>
+  <p>A primeira tela tem dois botões: <kbd>Sou o Luan</kbd> e <kbd>Sou o pai</kbd>. O aparelho lembra a escolha. Na primeira abertura, o Luan lê uma <b>carta</b> do pai explicando a missão — leia junto com ele, sem pressa.</p>
+  <figure><div class="cut" style="max-width:55mm;margin:0 auto"><img src="img/00_entrada.jpg" alt=""></div><figcaption>Tela de entrada</figcaption></figure>
+  <h3>2.4 Configuração inicial (o Painel do pai guia estes passos)</h3>
+  <ol>
+    <li><b>Criar um PIN</b>: <i>Configurações → PIN da área do pai</i>. Impede que o Luan abra gabaritos e atenção. É uma trava de conveniência, não um cofre.</li>
+    <li><b>Início do 4º bimestre</b>: confirme a data (padrão: 12/10/2026). Ela define a <b>rampa</b> de implantação.</li>
+    <li><b>Cadastrar as provas</b> em <i>Semana e provas</i> (capítulo 6.3).</li>
+    <li><b>Teste de Matemática de 10 minutos</b> (marco zero) em <i>Matemática</i>.</li>
+    <li><b>Montar cartas</b> dos capítulos do bimestre (já vem um baralho inicial de 64 cartas).</li>
+  </ol>
+  <div class="box"><b>A rampa de 4 semanas</b>Para não cansar o Luan, o plano entra aos poucos: <i>antes da rampa</i> só Aquecimento e ciclo D-3; <i>semana 1</i> acrescenta a Missão; depois episódio, XP e Desafio do Pai; a partir da <i>semana 5</i> é a rotina completa. O Painel mostra em que fase vocês estão. Você pode forçar uma fase em <i>Configurações</i>.</div>
+</section>
+
+<section>
+  <h2>3. O dia do Luan</h2>
+  <p>Na parte de baixo da tela do Luan há seis abas: <b>Hoje · Tarefas · Missão · Cálculo · Cartas · Eu</b>. No topo, 🔎 abre o <i>Descobrir</i> (capítulo 5) e 🔒 leva à área do pai.</p>
+  <div class="phones">
+    <figure><div class="cut tall"><img src="img/20_hoje.jpg" alt=""></div><figcaption>Hoje</figcaption></figure>
+    <figure><div class="cut tall"><img src="img/24_missao.jpg" alt=""></div><figcaption>Missão</figcaption></figure>
+    <figure><div class="cut tall"><img src="img/25_ginasio.jpg" alt=""></div><figcaption>Cálculo</figcaption></figure>
+  </div>
+  <h3>Hoje</h3>
+  <p>Lista os blocos do dia na ordem. Cada um tem <b>um botão</b>: “Caligrafia ✓”, “Começar”, “Ver tarefas”, “Expliquei sem olhar”, “Celular na base ✓”. No alto, a barra da semana mostra o XP e quanto falta para Bronze (150), Prata (200) e Ouro (250). O recado que o pai escreve aparece aqui, e as <b>próximas provas</b> ficam no rodapé.</p>
+  <h3>Missão</h3>
+  <p>Os sprints do dia. Cada um tem cronômetro (o alarme toca mesmo se o Luan trocar de tela), passos da técnica da matéria e as regras: celular fora da mesa, sem interromper, pausa de 5 minutos. Se o dia estiver difícil, existe o <b>modo 5 minutos</b>: ele faz o mínimo e <b>a sequência de dias não quebra</b>.</p>
+  <p>Conforme o dia do ciclo, a missão traz uma ferramenta: <i>fábrica de cartas</i> (D-3), <i>sessão de cartas</i> (D-2), <i>lista do vermelho</i> (D-1), <i>5 problemas</i> de Matemática, <i>Caça ao detalhe</i> de Português (leitura com perguntas) ou <i>refazer erro</i>.</p>
+  <h3>Cálculo (Ginásio)</h3>
+  <p>Contas com teclado numérico e cronômetro, em 5 faixas de dificuldade. O app registra o <b>tempo</b> e só sobe de faixa quando a meta é batida 3 dias seguidos. Há o modo “com o pai”: o pai pergunta em voz alta e marca ✓ ou ✗.</p>
+  <h3>Cartas</h3>
+  <p>Cartas-relâmpago com repetição espaçada (as que ele acerta voltam em 3, 7, 14, 30 dias; as que erra voltam amanhã). Regra: <b>tentar lembrar antes de virar</b>. O Luan também pode <b>fabricar</b> as próprias cartas — fabricar já é estudar.</p>
+  <h3>Eu</h3>
+  <p>Perfil do jogo: XP da semana, nível, sequência de dias, conquistas do mês, trilha da astronomia e o <b>Quadro de Missões</b>.</p>
+  <figure><div class="cut" style="max-width:55mm;margin:0 auto;height:110mm"><img src="img/27_eu.jpg" alt=""></div><figcaption>Aba “Eu”</figcaption></figure>
+  <div class="box dica"><b>XP: como funciona</b>O XP é <i>calculado</i> a partir do que foi feito — não existe “tirar XP” como castigo. Cada passo vale uma quantia (caligrafia +5, episódio +15, “Me explica” +20, Desafio +25, diário de erros +15…). Cinco dias completos na semana dão +30. No sábado o pai fecha a semana e entrega a recompensa do nível.</div>
+</section>
+
+<section class="nova">
+  <h2>4. Dever de casa</h2>
+  <p>As tarefas chegam todos os dias no grupo de pais do WhatsApp, vindas das apostilas e dos livros. O aplicativo recebe <b>a mensagem</b> e <b>as próprias questões</b> — em texto, foto ou PDF.</p>
+  <h3>4.1 Pai: receber a tarefa em 3 passos</h3>
+  <p>Toque em <kbd>＋ Receber tarefa</kbd> (botão amarelo, sempre visível no menu).</p>
+  <div class="passo"><b>1</b><div><b>Receber.</b> Cole a mensagem do WhatsApp <i>e/ou</i> adicione fotos, imagens ou um PDF (também dá para arrastar arquivos ou colar uma imagem). No Android, com o app instalado, use <kbd>Compartilhar → Missão 6º Ano</kbd> direto do WhatsApp. Se for foto de página, toque em <kbd>🔎 Ler texto desta imagem</kbd>: o aplicativo lê a foto (OCR) e coloca o texto para você. Em PDF, escolha as páginas (ex.: <i>12-15</i>).</div></div>
+  <div class="passo"><b>2</b><div><b>Conferir.</b> O aplicativo propõe as tarefas: separa por disciplina (“Matemática:”, “História -”…), acha o prazo (“para amanhã”, “entregue na sexta”, “até 15/10”), separa as questões numeradas, reconhece redação, cálculo, V/F e múltipla escolha, e detecta temas de pesquisa (“pesquise sobre…”). <b>Você sempre revisa</b>: ajuste disciplina, data, título, questões e imagens. Gabarito é opcional — se informar, o app corrige sozinho.</div></div>
+  <div class="passo"><b>3</b><div><b>Pronto.</b> As tarefas aparecem para o Luan na aba Tarefas e no bloco “Dever de casa”.</div></div>
+  <figure><div class="cut" style="height:150mm"><img src="img/11_receber2.jpg" alt=""></div><figcaption>Passo 2: o aplicativo propõe, você confere. Aqui, três tarefas de uma mesma mensagem.</figcaption></figure>
+  <div class="box aviso"><b>Sempre confira o prazo</b>Quando o app não encontra a data na mensagem, usa o próximo dia de aula e marca “estimado — confira” ao lado do campo.</div>
+
+  <h3>4.2 Luan: fazer a tarefa</h3>
+  <div class="phones">
+    <figure><div class="cut tall"><img src="img/21_tarefas.jpg" alt=""></div><figcaption>Lista de tarefas</figcaption></figure>
+    <figure><div class="cut tall"><img src="img/22_tarefa.jpg" alt=""></div><figcaption>Fazendo uma tarefa</figcaption></figure>
+  </div>
+  <ul>
+    <li>Na aba <b>Tarefas</b> ele vê o que é para hoje, o que está atrasado e quanto tempo deve levar.</li>
+    <li>Pode ver as <b>páginas</b> da apostila (toque para ampliar) e responder <b>no próprio app</b>: múltipla escolha, V/F, cálculo, pergunta aberta ou <b>redação</b> (com contador de palavras e lista “antes de enviar”: título, reler em voz alta, pontuação, passar a limpo).</li>
+    <li>Se preferir, faz <b>no caderno</b> e manda uma <b>foto</b> (📷). Dica: folha inteira, de frente, boa luz.</li>
+    <li>Ao terminar: informa o tempo e toca <kbd>✓ Terminei! Enviar para o pai</kbd>. Dá para <b>reabrir</b> se lembrar de algo.</li>
+  </ul>
+
+  <h3>4.3 Pai: conferir</h3>
+  <p>Em <i>Tarefas de casa</i>, abra a tarefa. Para cada questão: <kbd>✓ Certo</kbd>, <kbd>◐ Parcial</kbd> ou <kbd>✗ Errado</kbd>, mais um comentário que o Luan vê. Se você colocou gabarito, <kbd>⚡ Corrigir pelo gabarito</kbd> faz o trabalho. Em redação, marque o que melhorar (tema, coerência, ortografia, pontuação, parágrafos, letra). Ao final: comentário geral, nota opcional e <kbd>✓ Concluir a conferência</kbd>.</p>
+  <div class="box"><b>O que acontece com os erros</b>As questões erradas entram no <b>Diário de erros</b> com o tipo <b>A</b> (não sabia), <b>B</b> (sabia e errei) ou <b>C</b> (em branco). Erro tipo A com gabarito vira <b>carta-relâmpago</b>; erro de Matemática <b>volta amanhã</b> para refazer. Elogie o processo, não a inteligência.</div>
+  <div class="box aviso"><b>A noite não pode pesar</b>O aplicativo soma o tempo estimado e compara com um teto (padrão 60 min). Passou? Ele avisa. O plano pede para <i>não aumentar as horas</i>: nesses dias, priorize o que vale nota. Tarefa não dá XP por padrão; dá para ligar um valor pequeno em <i>Configurações → Tarefas de casa</i>.</div>
+</section>
+
+<section>
+  <h2>5. Fontes online confiáveis</h2>
+  <p>Quando há internet, o aplicativo ajuda o estudo consultando uma <b>lista fechada</b> de fontes (não é busca aberta na web). Sem internet, ele usa o que já foi consultado ou guardado.</p>
+  <table>
+    <tr><th>Fonte</th><th>Para quê</th><th>Observação</th></tr>
+    <tr><td>📖 Wikipédia</td><td>Qualquer assunto</td><td>Resumo, imagem, link. Confirme o importante em uma 2ª fonte.</td></tr>
+    <tr><td>🔤 Wikcionário</td><td>Significado e origem de palavras</td><td>Só para termos de uma palavra.</td></tr>
+    <tr><td>🚀 NASA (imagens)</td><td>Astronomia</td><td>Textos em inglês — ótimo para praticar.</td></tr>
+    <tr><td>🗺️ IBGE</td><td>Países e estados</td><td>Dados abertos oficiais.</td></tr>
+    <tr><td>🔗 Links de estudo</td><td>Khan Academy Brasil, Brasil Escola, Toda Matéria, Mundo Educação, IBGE Educa, NASA Space Place, vídeo-aulas</td><td>Abrem em outra aba, no site deles.</td></tr>
+  </table>
+  <h3>5.1 Luan: 🔎 Descobrir</h3>
+  <p>No topo da tela do Luan. Por padrão ele vê <b>temas prontos</b>: os que apareceram nas tarefas (“pesquise sobre o sistema solar”) e os que o pai sugerir. Tocando no tema, o app consulta as fontes e mostra os resultados. Dentro de uma tarefa com tema, aparece o cartão <b>🔎 Para pesquisar</b>.</p>
+  <div class="phones">
+    <figure><div class="cut tall" style="height:130mm"><img src="img/23_descobrir.jpg" alt=""></div><figcaption>Resultados com fonte e licença</figcaption></figure>
+    <div style="width:92mm;text-align:left">
+      <p><b>Em cada resultado:</b></p>
+      <ul>
+        <li><b>Fonte e licença</b> sempre visíveis, e <kbd>Ler na fonte ↗</kbd>.</li>
+        <li><kbd>💾 Guardar</kbd>: vai para a <b>Biblioteca</b>, que abre mesmo sem internet.</li>
+        <li><kbd>🃏 Fazer carta</kbd>: cria uma carta-relâmpago com a fonte anotada.</li>
+        <li><kbd>🧠 Testar minha memória</kbd>: esconde o texto, ele escreve o que lembra e só depois compara. Se não lembrou bem, vira carta.</li>
+        <li><b>Como saber se posso confiar?</b>: explicação curta de cada fonte, mais um guia de 4 perguntas (quem escreveu? quando? outra fonte diz o mesmo? tem referências?).</li>
+      </ul>
+      <div class="box dica"><b>Regra de casa</b>Ler → fechar → escrever com as <i>próprias palavras</i>. Copiar e colar não é aprender (e a professora percebe).</div>
+    </div>
+  </div>
+  <h3>5.2 Pai: Pesquisar</h3>
+  <p>Mesma ferramenta, com campo de busca livre e mais duas ações: <kbd>📎 Anexar à tarefa</kbd> (o trecho aparece para o Luan como <i>Material de apoio</i>) e <kbd>💡 Sugerir ao Luan</kbd> (o tema aparece no Descobrir dele). Dentro de uma tarefa, <kbd>Pesquisar sobre esta tarefa</kbd> já abre a busca no assunto certo.</p>
+  <figure><div class="cut" style="height:105mm"><img src="img/32_pai_pesquisar.jpg" alt=""></div><figcaption>Pesquisar (pai)</figcaption></figure>
+  <h3>5.3 Ajustes — Configurações → Fontes online</h3>
+  <ul>
+    <li>Liga ou desliga <b>cada fonte</b>.</li>
+    <li><b>Pesquisa livre do Luan</b>: <u>desligada</u> por padrão. Ligue quando achar adequado; os temas das tarefas continuam funcionando de qualquer forma.</li>
+    <li><b>Links para sites de estudo</b>: pode esconder do Luan.</li>
+    <li><kbd>Testar conexão com as fontes</kbd>: mostra ✓ ou ✗ para cada fonte. <b>Faça este teste logo depois de publicar</b> — se alguma der ✗, anote a mensagem.</li>
+    <li><kbd>Limpar cópias temporárias</kbd>: apaga o cache das consultas (a Biblioteca é mantida).</li>
+  </ul>
+  <div class="box aviso"><b>Sem internet ou fonte fora do ar</b>O app avisa e mostra o que já tem guardado. Se só uma fonte falhar, as outras seguem funcionando.</div>
+</section>
+
+<section class="nova">
+  <h2>6. Área do pai</h2>
+  <p>Menu à esquerda (em tela pequena, ele passa para o topo da página). Sempre disponível: <kbd>＋ Receber tarefa</kbd> e <kbd>🚀 Ver como Luan</kbd>.</p>
+  <h3>6.1 Painel</h3>
+  <p>A tela inicial: <b>fase da rampa</b>, <b>primeiros passos</b> (checklist), <b>Atenção</b> (alertas: falta backup, falta o teste de Matemática, cartas acumuladas, noite pesada, erros que repetem…), <b>Hoje do Luan</b> com o recado do dia, os números da semana e as próximas provas.</p>
+  <h3>6.2 Hoje do Luan</h3>
+  <p>O roteiro do dia do ponto de vista do pai: a missão com <b>Antes · Durante · Depois</b> (o que dizer e fazer em cada momento), as <b>perguntas que o Luan escreveu</b> para você responder à noite, a <b>pergunta-ponte da astronomia</b> com a “deixa” de como puxar o assunto, o <b>recado do dia</b> (ele vê em Hoje) e as <b>marcações do dia</b> — para registrar o que o Luan fez longe do aparelho.</p>
+  <h3>6.3 Semana e provas (ciclo D-3)</h3>
+  <p>Cadastre cada prova (disciplina, data, peso, conteúdo) ou <kbd>Colar a agenda de várias provas</kbd>, uma por linha: <i>08/10 História 2 Egito e Mesopotâmia</i>. O aplicativo monta a semana <b>sozinho</b>: D-3 fabricar, D-2 puxar, D-1 só o vermelho, Dia D não estudar — no máximo 2 estágios por dia, nunca dois D-2 juntos, História e Geografia primeiro. Dá para imprimir a semana.</p>
+  <figure><div class="cut" style="height:112mm"><img src="img/33_semana.jpg" alt=""></div><figcaption>Plano da semana gerado a partir de uma prova de História na sexta</figcaption></figure>
+
+  <h3>6.4 Erros e notas</h3>
+  <p>Quando a prova voltar corrigida (5 minutos, +15 XP): escolha a prova, informe a nota e copie <b>só as questões que ele errou</b>, classificando cada uma como A, B ou C. Depois de algumas semanas o app mostra “o desenho que aparece”: maioria <b>B</b> (sabia e errou) → o problema nunca foi estudo, é atenção/leitura; maioria <b>A</b> → falta cobertura da matéria; maioria <b>C</b> → olhe sono e ansiedade. Três diagnósticos, três tratamentos diferentes.</p>
+  <figure><div class="cut" style="height:85mm"><img src="img/34_erros.jpg" alt=""></div><figcaption>Erros e notas</figcaption></figure>
+
+  <h3>6.5 Matemática</h3>
+  <p><b>Teste de 10 minutos</b> com itens fixos (o marco zero, comparável um mês depois) e <b>5 problemas</b> gerados. O fluxo de problema escrito é guiado: <i>o que pedem → que dados tenho (toque em “usa” ou “sobra”) → o que liga os dois</i>. Os erros voltam no dia seguinte (+10 XP).</p>
+  <h3>6.6 Cartas e Desafio de sábado</h3>
+  <p><b>Cartas</b>: veja, crie, edite e filtre por disciplina (as vencidas aparecem primeiro). <b>Desafio de sábado</b>: o app monta um quiz de 20 minutos misturando cartas vencidas, erros e problemas; o pai pergunta, o Luan responde e o pai marca. Vale +25 XP.</p>
+  <h3>6.7 Progresso</h3>
+  <p>Constância (mapa de dias), XP por semana, tempo do Ginásio, tipos de erro por semana, cartas dominadas, Caça ao detalhe e <b>tarefas de casa</b> (no prazo × atrasadas, % de acertos). Lembrete: <i>o comportamento de estudo muda em três semanas; a nota demora um bimestre.</i></p>
+  <figure><div class="cut" style="height:105mm"><img src="img/36_progresso.jpg" alt=""></div><figcaption>Progresso</figcaption></figure>
+  <h3>6.8 Atenção e Professoras</h3>
+  <p><b>Atenção</b>: registro rápido de horário, interrupções, se terminou e horas de sono; depois de 3 semanas, mostra o melhor horário do Luan e se a distração é geral ou só em certas matérias. <b>Professoras</b>: roteiro para a conversa com as professoras do reforço (reduzir de 5 para 3 dias?): as quatro perguntas, o que levar (os números do app), a decisão e um espaço para anotações.</p>
+  <h3>6.9 Guia do plano</h3>
+  <p>O plano completo dentro do app, em linguagem direta: por que cada técnica funciona, protocolo do celular, o que dizer ao Luan, como usar o diário de erros, dever de casa e fontes online.</p>
+</section>
+
+<section>
+  <h2>7. Sincronização e backup</h2>
+  <h3>7.1 Dois aparelhos (opcional)</h3>
+  <p>Sem ativar nada, os dados ficam <b>só no aparelho</b>. Para o que o Luan marca aparecer no seu celular (e vice-versa):</p>
+  <div class="passo"><b>1</b><div>No <b>seu</b> aparelho: <i>Configurações → Sincronização entre aparelhos → Ativar e criar código</i>. O código tem 32 letras e números: <b>guarde como uma senha</b>.</div></div>
+  <div class="passo"><b>2</b><div>No aparelho do <b>Luan</b>: abra o <b>link de pareamento</b> (botão <kbd>Mostrar código e link</kbd>, envie-o por mensagem) ou digite o código em <kbd>Conectar</kbd>.</div></div>
+  <p>A partir daí, as marcações se enviam em poucos segundos, e o app busca novidades ao abrir, ao voltar para a aba e a cada 45 s. Se vocês mexerem em coisas diferentes ao mesmo tempo (ele marca a caligrafia, você escreve o recado), <b>tudo é mantido</b>. Imagens das tarefas também sincronizam (até 4 MB cada).</p>
+  <div class="box aviso"><b>Quem tem o código vê e altera os dados</b>Não há recuperação de código perdido. Se perder, os dados continuam em cada aparelho e dá para criar um código novo e reconectar.</div>
+  <h3>7.2 Backup</h3>
+  <p><i>Configurações → Backup</i>: <kbd>⬇ Exportar backup (com imagens)</kbd> gera um arquivo com tudo; <kbd>⬆ Importar backup</kbd> restaura (substitui os dados atuais). Faça um backup <b>uma vez por mês</b> e antes de trocar de celular. O Painel avisa quando faz tempo.</p>
+  <h3>7.3 Calendário</h3>
+  <p><i>Configurações → Calendário</i> exporta a rotina completa como arquivo <kbd>.ics</kbd> (Google Agenda, Apple, Outlook): os blocos entram como eventos semanais. A primeira data precisa ser uma segunda-feira.</p>
+  <h3>7.4 Outros ajustes</h3>
+  <ul>
+    <li><b>Horários</b> de cada bloco e <b>duração do sprint</b> em cada fase da rampa;</li>
+    <li><b>XP</b>: níveis (150/200/250) e as recompensas de cada nível — escolham juntos;</li>
+    <li><b>Dias livres</b> (feriados, sem reforço): o planejador pula esses dias;</li>
+    <li><b>Apagar tudo</b> existe no fim da página — pede confirmação e não pode ser desfeito.</li>
+  </ul>
+  <figure><div class="cut" style="height:110mm"><img src="img/37_config.jpg" alt=""></div><figcaption>Configurações</figcaption></figure>
+</section>
+
+<section>
+  <h2>8. Rotina sugerida</h2>
+  <h3>Todo dia (≈ 15 minutos do pai)</h3>
+  <table>
+    <tr><th>Quando</th><th>O que fazer</th><th>Onde</th></tr>
+    <tr><td>De manhã</td><td>Escrever um recado curto; olhar o que o dia pede</td><td>Hoje do Luan</td></tr>
+    <tr><td>Quando a mensagem do WhatsApp chegar</td><td>Colar/compartilhar no app, conferir e salvar</td><td>＋ Receber tarefa</td></tr>
+    <tr><td>Noite</td><td>Conferir o dever (✓ ◐ ✗), ouvir o “Me explica” de 5 min, celular na base às 20h30</td><td>Tarefas de casa · Hoje</td></tr>
+  </table>
+  <h3>Todo sábado (≈ 30 minutos)</h3>
+  <ol>
+    <li>Fazer o <b>Desafio do Pai</b> com o Luan e fechar a semana (XP, nível, recompensa).</li>
+    <li>Olhar <b>Progresso</b> e <b>Atenção</b> — duas telas, dois minutos.</li>
+    <li>Cadastrar as <b>provas</b> que surgiram e rever <b>Semana e provas</b>.</li>
+  </ol>
+  <h3>Uma vez por mês</h3>
+  <ul>
+    <li>Refazer o <b>teste de 10 minutos</b> de Matemática e comparar com o marco zero.</li>
+    <li>Exportar o <b>backup</b> e rever recompensas / Conquista do Mês.</li>
+  </ul>
+  <div class="box dica"><b>Como falar com o Luan</b>Elogie o <i>processo</i> (“você fez mesmo nos dias difíceis”), nunca a inteligência. Nunca retire XP já ganho como castigo. Se o aplicativo virar briga, volte ao modo 5 minutos e converse com as professoras — o objetivo é constância, não perfeição.</div>
+</section>
+
+<section>
+  <h2>9. Dúvidas e problemas comuns</h2>
+  <table>
+    <tr><th>Situação</th><th>O que fazer</th></tr>
+    <tr><td>O app não abre o modo do pai</td><td>Digite o PIN. Esqueceu? Sem o PIN é preciso apagar os dados do site no navegador (faça backup antes, se ainda puder).</td></tr>
+    <tr><td>Nada mudou depois de atualizar o site</td><td>Feche o app por completo e abra de novo (o aplicativo troca de versão ao reabrir). Se persistir, limpe os dados do site e reconecte pelo código.</td></tr>
+    <tr><td>O prazo da tarefa saiu errado</td><td>No passo “Conferir” ajuste a data; o aplicativo marca “estimado — confira” quando não achou o prazo.</td></tr>
+    <tr><td>A foto da apostila saiu com erros ao ler</td><td>O OCR lê bem texto impresso e foto nítida; letra cursiva e foto torta/escura saem com erros. A imagem original sempre fica junto — corrija o texto à mão.</td></tr>
+    <tr><td>“Compartilhar” não aparece no WhatsApp</td><td>Só no <b>Android</b> com o app <b>instalado</b>. No iPhone, cole o texto ou escolha a imagem.</td></tr>
+    <tr><td>Uma fonte online mostra ✗</td><td>Pode ser falta de internet, bloqueio da rede (escola, trabalho) ou a fonte fora do ar. Tente em outra rede. Se só uma falha, as outras continuam; anote a mensagem e peça ajuste.</td></tr>
+    <tr><td>Sincronizou com erro (⚠️ no topo)</td><td>Verifique a internet; o app tenta de novo sozinho. Os dados continuam salvos no aparelho.</td></tr>
+    <tr><td>Aviso de “noite pesada”</td><td>Priorize o que vale nota, converse com as professoras e não corte sono nem domingo.</td></tr>
+    <tr><td>Perdi o código da família</td><td>Os dados seguem no aparelho. Crie um código novo em Configurações e reconecte o outro aparelho.</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>10. Privacidade e limites</h2>
+  <h3>Privacidade</h3>
+  <ul>
+    <li>Os dados do Luan ficam <b>no aparelho</b>. Sem cookies de terceiros, sem anúncios, sem fontes ou scripts externos.</li>
+    <li><b>Sincronização</b> (opcional): só funciona com o código da família. O servidor guarda apenas o <i>hash</i> do código e os dados em formato técnico.</li>
+    <li><b>Fontes online</b>: ao consultar, o aparelho fala direto com o site da fonte, que vê o endereço de internet da casa; nenhum dado da família é enviado, só o termo pesquisado. Imagens de resultados também carregam desses sites. Dá para desligar tudo em Configurações.</li>
+    <li>O PIN é uma trava de conveniência (os dados ficam no aparelho), não um cofre.</li>
+  </ul>
+  <h3>Limites (honestidade)</h3>
+  <ul>
+    <li>O interpretador de mensagens do WhatsApp é por <b>regras</b>, não é inteligência artificial: funciona bem com o formato típico de grupos de pais, mas pode errar — por isso existe o passo “Conferir”.</li>
+    <li>O <b>OCR</b> depende da qualidade da foto.</li>
+    <li>As <b>fontes online</b> foram implementadas segundo a documentação de cada serviço e testadas com respostas simuladas; use <i>Testar conexão</i> no seu aparelho para confirmar. Textos de fontes abertas podem ter erros: confirme o importante em uma segunda fonte.</li>
+    <li>O aplicativo <b>apoia</b>, não substitui, a escola e o pai. Ele organiza, cobra constância e mostra números — a conversa com o Luan é com você.</li>
+  </ul>
+  <div class="box"><b>Ficou com dúvida?</b>A seção <i>Guia do plano</i>, dentro da área do pai, tem a explicação de cada técnica. O arquivo <kbd>README.md</kbd> do projeto traz os detalhes técnicos.</div>
+</section>
+
+</body>
+</html>
