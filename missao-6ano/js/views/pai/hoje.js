@@ -5,6 +5,7 @@ import { planoDoDia } from '../../core/dayplan.js';
 import { itensDoDia, xpDoDia } from '../../core/xp.js';
 import { alternarCampo, marcarSprint } from '../../actions.js';
 import { ESTAGIOS } from '../../core/planner.js';
+import { tarefasDeHoje, cargaMinutos, statusDe, ROTULO_STATUS } from '../../core/tarefas.js';
 import { chip, toast, perguntarTexto } from '../../ui.js';
 import { addDays, fmtDiaLongo, nowHM } from '../../util/dates.js';
 
@@ -68,6 +69,15 @@ export default function hojePai(ctx) {
   if (plano.sprints.length) {
     raiz.append(h('div', { class: 'card stack' }, h('h2', { style: { margin: 0 } }, 'A Missão do Dia'),
       ...plano.sprints.map((sp) => h('div', { class: 'stack sm' }, h('h3', { style: { margin: 0 } }, `Sprint ${sp.idx} · ${sp.titulo}`), h('ol', { class: 'steps' }, ...sp.passos.map((p) => h('li', null, p)))))));
+  }
+
+  // ---- tarefas desta noite ----
+  const tHoje = tarefasDeHoje(getState(), data);
+  const enviadas = getState().tarefas.filter((x) => !x.cancelada && x.feitaEm === data);
+  if (tHoje.length || enviadas.length) {
+    raiz.append(h('div', { class: 'card stack sm' }, h('div', { class: 'row between' }, h('h2', { style: { margin: 0 } }, '📚 Tarefas desta noite'), h('a', { class: 'btn sm', href: '#/pai/tarefas' }, 'Abrir tarefas')),
+      h('p', { class: 'small muted', style: { margin: 0 } }, tHoje.length ? `${tHoje.length} para entregar até o próximo dia de aula · cerca de ${cargaMinutos(getState(), data)} min` : 'Tudo enviado.'),
+      ...[...tHoje, ...enviadas.filter((x) => !tHoje.includes(x))].map((x) => h('a', { class: 'row between card flat', style: { padding: '8px 12px', textDecoration: 'none', color: 'inherit' }, href: `#/pai/tarefa?id=${x.id}` }, h('span', null, h('b', null, x.disciplina), ' · ', x.titulo), chip(ROTULO_STATUS[statusDe(x)], statusDe(x) === 'feita' ? 'warn' : statusDe(x) === 'conferida' ? 'ok' : '')))));
   }
 
   // ---- XP do dia ----

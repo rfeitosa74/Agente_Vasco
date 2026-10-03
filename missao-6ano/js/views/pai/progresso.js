@@ -69,6 +69,23 @@ export default function progresso(ctx) {
   const leit = s.leituras.slice(-10);
   if (leit.length) raiz.append(h('div', { class: 'card stack' }, h('h2', { style: { margin: 0 } }, 'Caça ao detalhe (Português)'), graficoBarras({ titulo: 'Acertos nas leituras', rotulos: leit.map((l) => fmtCurto(l.data)), series: [{ nome: 'Acertos', cor: CORES.ok, valores: leit.map((l) => l.acertos) }], linhasRef: [{ v: 3, rotulo: 'máx. 3', cor: 'var(--muted)' }] })));
 
+  // ---- tarefas de casa ----
+  const feitas = (s.tarefas || []).filter((t) => !t.cancelada && t.feitaEm);
+  if (feitas.length) {
+    const noPrazo = (t) => t.feitaEm <= t.entrega;
+    const conf = feitas.filter((t) => t.conferidaEm && t.itens.length);
+    const pctCertas = conf.length ? Math.round((conf.reduce((a, t) => a + t.itens.filter((i) => i.correcao.res === 'certo').length + t.itens.filter((i) => i.correcao.res === 'parcial').length * 0.5, 0) / conf.reduce((a, t) => a + t.itens.length, 0)) * 100) : null;
+    raiz.append(h('div', { class: 'card stack' }, h('h2', { style: { margin: 0 } }, '📚 Tarefas de casa'),
+      graficoBarras({ titulo: 'Tarefas enviadas por semana', empilhado: true, rotulos: semanas.map(fmtCurto), series: [
+        { nome: 'No prazo', cor: CORES.ok, valores: semanas.map((w) => feitas.filter((t) => weekStart(t.feitaEm) === w && noPrazo(t)).length) },
+        { nome: 'Atrasadas', cor: CORES.A, valores: semanas.map((w) => feitas.filter((t) => weekStart(t.feitaEm) === w && !noPrazo(t)).length) }] }),
+      legenda([{ nome: 'No prazo', cor: CORES.ok }, { nome: 'Atrasadas', cor: CORES.A }]),
+      h('div', { class: 'grid c3' },
+        h('div', { class: 'stat' }, h('span', null, 'Enviadas'), h('b', null, String(feitas.length))),
+        h('div', { class: 'stat' }, h('span', null, 'No prazo'), h('b', null, `${Math.round((feitas.filter(noPrazo).length / feitas.length) * 100)}%`)),
+        h('div', { class: 'stat' }, h('span', null, 'Acertos conferidos'), h('b', null, pctCertas == null ? '—' : `${pctCertas}%`)))));
+  }
+
   // ---- números ----
   raiz.append(h('div', { class: 'grid c4' },
     h('div', { class: 'stat' }, h('span', null, 'Dias com registro'), h('b', null, String(Object.keys(s.days).length))),

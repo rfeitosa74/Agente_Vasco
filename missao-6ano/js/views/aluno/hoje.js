@@ -9,6 +9,7 @@ import { abrirModal, barra, chip, banner, toast } from '../../ui.js';
 import { montar as tRefazer } from '../../tools/refazer.js';
 import { fmtDiaLongo, parse, diffDays, fmtDia } from '../../util/dates.js';
 import { ESTAGIOS } from '../../core/planner.js';
+import { tarefasDeHoje } from '../../core/tarefas.js';
 import { DISCIPLINAS } from '../../core/planner.js';
 
 const saudacao = () => { const hr = new Date().getHours(); return hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite'; };
@@ -80,7 +81,7 @@ export default function hoje(ctx) {
 
   // ===== helpers de bloco =====
   function blocoEl(b, num) {
-    const cls = { janela: 'b4', aquecimento: 'b1', missao: 'b2', episodio: 'b3', desafio: 'b4', explica: 'b4', base: 'b1' }[b.id] || 'b1';
+    const cls = { dever: 'b3', janela: 'b4', aquecimento: 'b1', missao: 'b2', episodio: 'b3', desafio: 'b4', explica: 'b4', base: 'b1' }[b.id] || 'b1';
     const feito = estaFeito(b.id);
     const el = h('div', { class: `bloco ${cls}${feito ? ' done' : ''}` },
       h('span', { class: 'hora' }, b.hora),
@@ -90,6 +91,7 @@ export default function hoje(ctx) {
   }
 
   function estaFeito(id) {
+    if (id === 'dever') return !tarefasDeHoje(s, data).length;
     if (id === 'janela') return dia.janelaLimpa;
     if (id === 'aquecimento') return dia.caligrafia;
     if (id === 'missao') return plano.sprints.length > 0 && plano.sprints.filter((x) => dia.sprints[x.idx]?.ok).length >= (dia.diaDificil ? 1 : plano.sprints.length);
@@ -133,6 +135,8 @@ export default function hoje(ctx) {
         return [h('button', { class: 'btn sm' + (feito ? '' : ' amber'), onClick: () => (feito ? (alternarCampo(data, 'explicou', ''), ctx.rerender()) : escolherTema()) }, feito ? 'Desfazer' : `Expliquei sem olhar +20`)];
       case 'desafio':
         return [h('button', { class: 'btn sm' + (feito ? '' : ' amber'), onClick: () => { alternarCampo(data, 'desafio', 'Desafio do Pai'); ctx.rerender(); } }, feito ? 'Desfazer' : `Fiz o desafio${xp ? ' +25' : ''}`)];
+      case 'dever':
+        return [h('a', { class: 'btn sm amber', href: '#/aluno/tarefas' }, feito ? 'Ver' : 'Ver tarefas')];
       case 'janela':
         return [h('button', { class: 'btn sm' + (feito ? '' : ' amber'), onClick: () => { alternarCampo(data, 'janelaLimpa', ''); ctx.rerender(); } }, feito ? 'Desfazer' : 'Fiquei sem tela ✓')];
       case 'base':

@@ -4,6 +4,7 @@ import { planoDoDia, planoDasProvas } from './dayplan.js';
 import { diaCompleto, corrente } from './xp.js';
 import { faseDe } from './phase.js';
 import { sequenciaMeta, FAIXAS } from './ginasio.js';
+import { aConferir, tarefasAFazer, situacaoDe, cargaMinutos } from './tarefas.js';
 
 export const TIPOS_ERRO = {
   A: { nome: 'Não sabia', quando: 'Lacuna real de conteúdo', acao: 'Vira carta-relâmpago e reaparece no Desafio do Pai.' },
@@ -45,6 +46,16 @@ export function insights(state, hoje) {
   for (const p of futuras) if (avisos[p.id]) add('aviso', `Prova de ${p.disciplina} (${p.data.slice(8)}/${p.data.slice(5, 7)}): pouco tempo`, avisos[p.id].join(' '), { rotulo: 'Ver o plano', hash: '#/pai/semana' });
   const semNota = state.provas.filter((p) => !p.cancelada && p.data < hoje && !p.classificada);
   if (semNota.length) add('info', `${semNota.length} prova${semNota.length > 1 ? 's' : ''} para classificar no diário de erros`, 'Quando a prova voltar corrigida: 5 minutos, 15 XP, e o diagnóstico melhora.', { rotulo: 'Abrir o diário', hash: '#/pai/erros' });
+
+  // --- tarefas de casa ---
+  const tarefas = state.tarefas || [];
+  const conferirLista = aConferir(state);
+  if (conferirLista.length) add('info', `${conferirLista.length} tarefa${conferirLista.length > 1 ? 's' : ''} esperando a sua conferência`, 'O Luan já enviou. Conferir rápido mantém o ritmo e alimenta o diário de erros.', { rotulo: 'Conferir agora', hash: '#/pai/tarefas?aba=conferir' });
+  const atrasadas = tarefasAFazer(state, hoje).filter((t) => situacaoDe(t, hoje) === 'atrasada');
+  if (atrasadas.length) add('aviso', `${atrasadas.length} tarefa${atrasadas.length > 1 ? 's' : ''} atrasada${atrasadas.length > 1 ? 's' : ''}`, atrasadas.slice(0, 3).map((t) => `${t.disciplina}: ${t.titulo}`).join(' · '), { rotulo: 'Ver tarefas', hash: '#/pai/tarefas?aba=fazer' });
+  const carga = cargaMinutos(state, hoje);
+  if (carga > (cfg.tetoTarefaMin || 60)) add('aviso', `Noite pesada: cerca de ${carga} min de tarefa`, `Passa do teto de ${cfg.tetoTarefaMin || 60} min. O plano pede para não aumentar as horas — priorize o que vale nota e converse com as professoras sobre a carga.`, { rotulo: 'Ver tarefas', hash: '#/pai/tarefas' });
+  if (!tarefas.length && isWeekday(hoje)) add('info', 'As tarefas da escola ainda não estão no app', 'Cole a mensagem do WhatsApp (ou mande uma foto/PDF da apostila): o Luan vê no aplicativo dele.', { rotulo: 'Receber tarefa', hash: '#/pai/receber' });
 
   // --- matemática ---
   if (!state.testesMat.length) add('info', 'Falta o teste de 10 minutos de Matemática', 'É o marco zero: diz onde atacar primeiro e serve para comparar daqui a um mês.', { rotulo: 'Aplicar o teste', hash: '#/pai/matematica' });

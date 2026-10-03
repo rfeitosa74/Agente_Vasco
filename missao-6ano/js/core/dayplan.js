@@ -6,6 +6,7 @@ import { planejarProvas, estagiosAtivos, ESTAGIOS } from './planner.js';
 import { ROTACAO, sprintsDoEstagio } from '../data/tecnicas.js';
 import { PONTES } from '../data/ponte.js';
 import { hashStr } from './rng.js';
+import { tarefasDeHoje, cargaMinutos } from './tarefas.js';
 
 let cachePlanner = { chave: '', resultado: null };
 
@@ -109,8 +110,14 @@ export function planoDoDia(state, data) {
     blocos.push(BLOCO('missao', 'Missão do Dia', h.missao, sprints.length * minutos + (sprints.length > 1 ? 5 : 0), { detalhe: `${sprints.length} × ${minutos} min${sprints.length > 1 ? ' + 5 de pausa' : ''}` }));
   }
   if (fase.episodios.includes(d)) blocos.push(BLOCO('episodio', 'Episódio do canal', h.episodio, 10, { detalhe: '1 minuto, no máximo 2 takes' }));
+  const pendentes = tarefasDeHoje(state, data);
+  const enviadasHoje = (state.tarefas || []).filter((t) => !t.cancelada && t.feitaEm === data);
+  if (pendentes.length || enviadasHoje.length) {
+    blocos.push(BLOCO('dever', 'Dever de casa', h.dever || '18:30', 0, { detalhe: pendentes.length ? `${pendentes.length} tarefa${pendentes.length > 1 ? 's' : ''} · cerca de ${cargaMinutos(state, data)} min` : 'Tudo enviado!' }));
+  }
   if (explica) blocos.push(explica);
   if (baseCarga) blocos.push(baseCarga);
+  blocos.sort((a, b) => String(a.hora).localeCompare(String(b.hora)));
 
   const avisos = [];
   if (tipo === 'ciclo' && estagios.some((s) => s.comprimido)) avisos.push('Prova com pouco tempo: estágios apertados.');

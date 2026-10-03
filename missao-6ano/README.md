@@ -21,7 +21,7 @@ como aplicativo (PWA) e que **funciona offline**. Os dados ficam no aparelho; na
 ```bash
 cd missao-6ano
 npm start            # http://localhost:8080  (ou: node scripts/serve.mjs 3000)
-npm test             # 61 testes da lógica (planejador, XP, Ginásio, mesclagem/sincronização, conteúdo…)
+npm test             # 82 testes da lógica (planejador, XP, Ginásio, tarefas, WhatsApp, sincronização, conteúdo…)
 ```
 Também serve qualquer servidor estático (`python3 -m http.server`). Abrir o `index.html` direto do disco
 funciona para olhar, mas o modo offline/instalável exige `http(s)://`.
@@ -31,6 +31,17 @@ Qualquer hospedagem estática serve — copie a pasta `missao-6ano/`:
 - **Netlify**: arraste a pasta em *Deploy manually* (app.netlify.com/drop).
 - **GitHub Pages**: *Settings → Pages → Deploy from branch* apontando para a pasta (ou copie o conteúdo para `/docs`).
 - Depois, no celular: *Compartilhar → Adicionar à tela inicial*. Instalado, o navegador não apaga os dados por inatividade.
+
+### Dever de casa (tarefas da escola)
+O Luan recebe tarefas todos os dias de aula, enviadas no grupo de pais do WhatsApp e tiradas das apostilas e livros. O app recebe tanto **a mensagem** quanto **as próprias questões**, em texto, foto ou PDF:
+
+1. **Pai → ＋ Receber tarefa** (botão amarelo, sempre visível). Passo 1: cole a mensagem do WhatsApp **e/ou** tire foto / escolha imagens / escolha um PDF (também dá para arrastar arquivos ou colar uma imagem com Ctrl+V). No Android, com o app instalado, dá para usar **Compartilhar → Missão 6º Ano** direto do WhatsApp.
+2. **Ler o texto das fotos (OCR)**: o botão “🔎 Ler texto desta imagem” transforma a foto da apostila em texto (funciona offline, em português; nada é enviado a terceiros). PDFs: escolha as páginas (ex.: `12-15`); elas viram imagens e o texto do PDF, quando existe, já vem junto.
+3. Passo 2: o app propõe as tarefas — separa por disciplina (“Matemática:”, “História -”…), acha o prazo (“para sexta”, “até 15/10”, “amanhã”), separa questões numeradas (`1)`, `2.`, `a)`), reconhece redação, cálculo, V/F e múltipla escolha. **Você sempre revisa e ajusta antes de salvar.** Gabarito é opcional (se informar, corrige sozinho).
+4. **Luan → aba Tarefas** (e bloco “Dever de casa” no Hoje): vê as páginas (com zoom), responde no app (múltipla escolha, V/F, cálculo, pergunta aberta, **redação** com contador de palavras e checklist) ou faz no caderno e manda **foto**; informa o tempo e envia.
+5. **Pai → conferir**: ✓ Certo / ◐ Parcial / ✗ Errado por questão, tipo de erro A/B/C, comentário (o Luan vê). Erros vão para o **Diário de erros**; erro tipo A com gabarito vira **carta-relâmpago**; erro de Matemática **volta amanhã**. Redação tem lista “o que melhorar”.
+
+A carga da noite (soma das estimativas) é comparada com um teto (padrão 60 min): o plano manda **não aumentar as horas**, então o app avisa quando a noite está pesada. Tarefa **não dá XP** por padrão (a tabela de XP do plano não prevê dever de casa); *Configurações → Tarefas de casa* permite dar um valor pequeno. As imagens ficam no aparelho (IndexedDB) e, com a sincronização ligada, vão para a nuvem para o outro aparelho ver (imagens > 4 MB ficam só locais). O backup exportado inclui as imagens.
 
 ### Primeiros passos (o Painel do pai guia isso)
 1. **Configurações**: crie um PIN, confira a data do início do 4º bimestre e os horários.
@@ -99,9 +110,11 @@ js/core/        LÓGICA PURA (testada com node --test)
    dayplan.js   plano do dia     ginasio.js   faixas       problems.js  5 problemas
    leitner.js   cartas           insights.js  alertas      ics.js       calendário
 js/data/        conteúdo (guia, técnicas, cartas, pontes, episódios, textos)
+js/anexos.js · js/vendor → vendor/   imagens (IndexedDB), PDF.js e Tesseract (OCR) embutidos, sob demanda
+js/core/zap.js · tarefas.js        interpretador de mensagens do WhatsApp · modelo de tarefa
 js/tools/       mini-aplicativos dentro dos sprints (cartas, problemas, refazer, perguntas, texto, prova)
 js/views/aluno/ · js/views/pai/                   telas
-tests/                                            61 testes
+tests/                                            82 testes
 ```
 
 Dica de teste manual: acrescente `?hoje=2026-10-28` à URL para simular qualquer data (e ver as fases da rampa).
@@ -111,7 +124,14 @@ Dica de teste manual: acrescente `?hoje=2026-10-28` à URL para simular qualquer
 Por padrão nenhum dado sai do aparelho: sem cookies de terceiros, sem fontes ou scripts externos. A única conexão externa é a **sincronização opcional** (Supabase), que só funciona depois que o pai ativa e cria o código da família.
 O nome padrão do aluno é só “Luan” (troque em *Configurações*). O PDF e o plano não fazem parte do repositório.
 
+## Limites do dever de casa (honestidade)
+- O interpretador de mensagens é por **regras** (não é IA): funciona bem com o formato típico de grupos de pais, mas pode errar — por isso o passo “Confira”. Mensagens muito livres caem em uma tarefa “Outra” com o texto inteiro.
+- O OCR lê bem texto impresso e fotos nítidas; letra cursiva e fotos tortas/escuras saem com erros (o app mostra a certeza da leitura). Sempre fica a imagem original junto.
+- O “Compartilhar” do WhatsApp só existe no **Android** com o app instalado (PWA); no iPhone, cole o texto ou escolha a imagem.
+- A pasta `vendor/` (~15 MB) traz PDF.js e Tesseract para funcionar offline; só carregam quando usados.
+
 ## Evoluções possíveis
+- **IA de leitura de tarefas** (Claude): enviar a foto/PDF e receber as questões já estruturadas. Exige uma função no servidor para guardar a chave de API (não pode ficar no app).
 
 - Login por e-mail (em vez do código da família) caso o app passe a atender mais famílias.
 - Mais baralhos prontos (Ciências, Inglês) e um banco maior de textos/problemas.

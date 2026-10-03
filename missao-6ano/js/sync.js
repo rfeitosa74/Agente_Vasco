@@ -2,6 +2,7 @@
 import { getState, subscribe, substituirEstado } from './store.js';
 import { criarSyncCore, gerarCodigo, normalizarCodigo, formatarCodigo } from './core/syncCore.js';
 import { SYNC_URL, SYNC_KEY } from './syncConfig.js';
+import { enviarAnexos, baixarFaltantes } from './syncAnexos.js';
 
 const CHAVE = 'missao6:sync'; // { codigo, base, rev } — fica só neste aparelho
 const ouvintes = new Set();
@@ -37,6 +38,8 @@ export async function agora() {
   avisar({ fase: 'sincronizando', erro: '' });
   try {
     await core.sincronizar(c.codigo);
+    // imagens das tarefas: não derrubam a sincronização principal se falharem
+    try { await enviarAnexos(); await baixarFaltantes(getState()); } catch (e) { console.warn('anexos:', e.message || e); }
     avisar({ fase: 'ok', ultimoOk: new Date().toISOString(), erro: '' });
   } catch (e) {
     avisar({ fase: 'erro', erro: navigator.onLine === false ? 'Sem internet — tento de novo quando voltar.' : String(e.message || e) });

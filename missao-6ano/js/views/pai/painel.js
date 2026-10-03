@@ -9,6 +9,7 @@ import { errosParaRefazer } from '../../actions.js';
 import { chip, barra, toast } from '../../ui.js';
 import { fmtDiaLongo, fmtDia, addDays, diffDays } from '../../util/dates.js';
 import { ESTAGIOS } from '../../core/planner.js';
+import { tarefasDeHoje } from '../../core/tarefas.js';
 
 export default function painel(ctx) {
   const s = getState();
@@ -44,7 +45,7 @@ export default function painel(ctx) {
   }
 
   // ---- hoje ----
-  const feitoDe = (id) => ({ janela: dia.janelaLimpa, aquecimento: dia.caligrafia, missao: plano.sprints.length && plano.sprints.every((x) => dia.sprints[x.idx]?.ok), episodio: dia.episodio, explica: dia.explicou, desafio: dia.desafio, base: dia.base }[id]);
+  const feitoDe = (id) => ({ dever: !tarefasDeHoje(s, hoje).length, janela: dia.janelaLimpa, aquecimento: dia.caligrafia, missao: plano.sprints.length && plano.sprints.every((x) => dia.sprints[x.idx]?.ok), episodio: dia.episodio, explica: dia.explicou, desafio: dia.desafio, base: dia.base }[id]);
   const recado = h('textarea', { 'aria-label': 'Recado do dia', placeholder: 'Escreva a Missão do Dia ou um recado para o Luan (ele vê na tela Hoje)…', style: { minHeight: '64px' } }, dia.recado);
   raiz.append(h('div', { class: 'card stack' },
     h('div', { class: 'row between' }, h('h2', { style: { margin: 0 } }, 'Hoje do Luan'), h('a', { class: 'btn sm primary', href: '#/pai/hoje' }, 'Abrir o dia completo')),

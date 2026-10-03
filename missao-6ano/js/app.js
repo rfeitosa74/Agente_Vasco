@@ -18,14 +18,17 @@ const ROTAS_ALUNO = {
   eu: () => import('./views/aluno/eu.js'),
   episodio: () => import('./views/aluno/episodio.js'),
   carta: () => import('./views/aluno/carta.js'),
+  tarefas: () => import('./views/aluno/tarefas.js'),
+  tarefa: () => import('./views/aluno/tarefa.js'),
 };
 
 export const MENU_PAI = [
-  ['painel', 'Painel', '🏠'], ['hoje', 'Hoje do Luan', '☀️'], ['semana', 'Semana e provas', '📅'], ['erros', 'Erros e notas', '📝'],
+  ['painel', 'Painel', '🏠'], ['hoje', 'Hoje do Luan', '☀️'], ['tarefas', 'Tarefas de casa', '📚'], ['semana', 'Semana e provas', '📅'], ['erros', 'Erros e notas', '📝'],
   ['cartas', 'Cartas', '🃏'], ['matematica', 'Matemática', '🧮'], ['desafio', 'Desafio de sábado', '🏆'], ['progresso', 'Progresso', '📈'],
   ['atencao', 'Atenção', '👁️'], ['professoras', 'Professoras', '👩‍🏫'], ['guia', 'Guia do plano', '📖'], ['config', 'Configurações', '⚙️'],
 ];
-const ROTAS_PAI = Object.fromEntries(MENU_PAI.map(([id]) => [id, () => import(`./views/pai/${id}.js`)]));
+// telas do pai: as do menu + as que se abrem a partir de outras (receber tarefa, detalhe/correção da tarefa)
+const ROTAS_PAI = Object.fromEntries([...MENU_PAI.map(([id]) => id), 'receber', 'tarefa'].map((id) => [id, () => import(`./views/pai/${id}.js`)]));
 
 let limpezas = [];
 let seqRender = 0;
@@ -91,13 +94,13 @@ async function renderConteudo() {
 }
 
 const NAV_ALUNO = [
-  ['hoje', 'Hoje', '🏠'], ['missao', 'Missão', '🎯'], ['ginasio', 'Cálculo', '🧮'], ['cartas', 'Cartas', '🃏'], ['quadro', 'Quadro', '📋'], ['eu', 'Eu', '⭐'],
+  ['hoje', 'Hoje', '🏠'], ['tarefas', 'Tarefas', '📚'], ['missao', 'Missão', '🎯'], ['ginasio', 'Cálculo', '🧮'], ['cartas', 'Cartas', '🃏'], ['eu', 'Eu', '⭐'],
 ];
 
 function shellAluno(view) {
   const hoje = today();
   const fase = faseDe(hoje, getState().config);
-  const itens = NAV_ALUNO.filter(([id]) => id !== 'quadro' || fase.xp);
+  const itens = NAV_ALUNO;
   const xpChip = h('span', { class: 'xp-chip', id: 'xpchip', hidden: !fase.xp });
   const conteudo = h('main', { class: 'container', id: 'conteudo' });
   const shell = h('div', { class: 'shell-aluno' },
@@ -108,7 +111,7 @@ function shellAluno(view) {
     !storageOk() ? h('div', { class: 'container' }, banner('aviso', 'Atenção', 'O navegador não está deixando salvar os dados neste modo. Feche a janela anônima ou libere o armazenamento.')) : null,
     conteudo,
     h('nav', { class: 'bottomnav', 'aria-label': 'Principal' }, h('div', { class: 'bottomnav-in' },
-      ...itens.map(([id, rotulo, ico]) => h('a', { href: `#/aluno/${id}`, 'aria-current': id === view ? 'page' : null }, h('span', { class: 'ico', 'aria-hidden': 'true' }, ico), rotulo)))));
+      ...itens.map(([id, rotulo, ico]) => h('a', { href: `#/aluno/${id}`, 'aria-current': (id === view || (id === 'tarefas' && view === 'tarefa') || (id === 'eu' && view === 'quadro')) ? 'page' : null }, h('span', { class: 'ico', 'aria-hidden': 'true' }, ico), rotulo)))));
   return { shell, conteudo };
 }
 
@@ -117,7 +120,8 @@ function shellPai(view) {
   const shell = h('div', { class: 'shell-pai' },
     h('aside', { class: 'side', 'aria-label': 'Menu do pai' },
       h('a', { class: 'brand', href: '#/pai/painel' }, h('img', { src: 'assets/icon.svg', alt: '', width: 32, height: 32 }), h('span', null, 'Área do pai')),
-      ...MENU_PAI.map(([id, rotulo, ico]) => h('a', { href: `#/pai/${id}`, 'aria-current': id === view ? 'page' : null }, h('span', { 'aria-hidden': 'true' }, ico), rotulo)),
+      h('a', { class: 'side-cta', href: '#/pai/receber' }, h('span', { 'aria-hidden': 'true' }, '＋'), 'Receber tarefa'),
+      ...MENU_PAI.map(([id, rotulo, ico]) => h('a', { href: `#/pai/${id}`, 'aria-current': (id === view || (id === 'tarefas' && ['tarefa', 'receber'].includes(view))) ? 'page' : null }, h('span', { 'aria-hidden': 'true' }, ico), rotulo)),
       h('div', { class: 'sep' }),
       h('a', { href: '#/aluno/hoje', onClick: (e) => { e.preventDefault(); salvarModo('aluno'); go('#/aluno/hoje'); } }, h('span', { 'aria-hidden': 'true' }, '🚀'), 'Ver como Luan'),
       h('a', { href: '#', onClick: (e) => { e.preventDefault(); sairDoPai(); } }, h('span', { 'aria-hidden': 'true' }, '🔒'), 'Sair (bloquear)'),

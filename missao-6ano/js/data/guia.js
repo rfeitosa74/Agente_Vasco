@@ -86,6 +86,19 @@ export const GUIA = [
     ],
   },
   {
+    id: 'tarefas', titulo: 'Dever de casa (tarefas da escola)',
+    intro: 'O plano original não trata do dever de casa — mas ele existe todo dia e disputa o mesmo tempo e a mesma energia do Luan. A regra é a mesma do resto: curto, claro e sem aumentar as horas.',
+    itens: [
+      { t: 'Receber', d: 'Cole a mensagem do WhatsApp, mande fotos da apostila/livro ou um PDF (botão “＋ Receber tarefa”). O app separa por disciplina e prazo; você confere e salva. O Luan já vê no aplicativo dele.' },
+      { t: 'Onde entra no dia', d: 'No plano, o dever de casa fica na noite (18h30, “Volta, jantar, tempo livre”), depois da Missão da manhã. O app soma o tempo estimado e avisa quando passa do teto da noite.' },
+      { t: 'Como o Luan faz', d: 'Questões digitadas no app ou, se preferir, no caderno com foto. Em redação: rascunho → reler em voz alta → ajustar → passar a limpo. Depois informa quanto tempo levou e envia.' },
+      { t: 'Como você confere', d: 'Certo / parcial / errado, com o tipo do erro (A não sabia, B sabia e errei, C em branco). Elogie o processo, não a inteligência. O que for erro entra no diário de erros: tipo A vira carta-relâmpago, erro de Matemática volta amanhã.' },
+    ],
+    destaques: [
+      { tipo: 'aviso', titulo: 'Se a carga estiver alta', texto: 'Dever + reforço todos os dias é o cenário de saturação descrito no início do guia. Se o aviso de “noite pesada” aparecer com frequência, leve os números às professoras (aba Professoras) e priorize o que vale nota — não corte o sono nem o domingo.' },
+    ],
+  },
+  {
     id: 'celular', titulo: 'Protocolo do celular',
     intro: 'Confiscar gera guerra diária e ensina que estudo é castigo. O celular tem dois empregos — ferramenta de estudo e recompensa conquistada — e perde o emprego de babá.',
     itens: [

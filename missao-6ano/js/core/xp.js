@@ -33,9 +33,11 @@ export function diaCompleto(dia, plano) {
 /** Itens de XP de um dia (sem o bônus semanal). */
 export function itensDoDia(state, data) {
   const dia = state.days[data];
-  if (!dia) return [];
-  const plano = planoDoDia(state, data);
   const itens = [];
+  const nTarefas = state.config.xpTarefa > 0 ? (state.tarefas || []).filter((t) => !t.cancelada && t.feitaEm === data).length : 0;
+  if (nTarefas) itens.push({ k: 'tarefa', label: nTarefas > 1 ? `${nTarefas} tarefas de casa` : 'Tarefa de casa feita', xp: nTarefas * state.config.xpTarefa, n: nTarefas });
+  if (!dia) return itens;
+  const plano = planoDoDia(state, data);
   const add = (k, n = 1, label) => itens.push({ k, label: label || TABELA_XP[k].label, xp: TABELA_XP[k].xp * n, n });
   if (dia.caligrafia) add('caligrafia');
   const n = sprintsFeitos(dia, plano);

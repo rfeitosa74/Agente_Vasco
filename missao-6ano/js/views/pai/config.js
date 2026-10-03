@@ -7,6 +7,8 @@ import { chip, confirmar, perguntarTexto, toast, baixarArquivo } from '../../ui.
 import { weekStart, addDays, fmtDia, dow } from '../../util/dates.js';
 import { sairDoPai } from '../../app.js';
 import * as sync from '../../sync.js';
+import { listar as listarAnexos, obterBlob, salvarBlob } from '../../anexos.js';
+import { blobParaBase64, base64ParaBlob } from '../../core/syncAnexosCore.js';
 import { abrirModal } from '../../ui.js';
 
 export default function config(ctx) {
@@ -58,7 +60,7 @@ export default function config(ctx) {
     h('div', { class: 'form-row' }, ...linhasMin), h('button', { class: 'btn sm', onClick: () => { mutate((st) => { st.config.sprintMin = {}; for (const k of ORDEM_FASES) if (mins[k].value) st.config.sprintMin[k] = Number(mins[k].value); }); salvar(); } }, 'Salvar durações')));
 
   // ---------- horários ----------
-  const hs = { acordar: 'Acordar', aquecimento: 'Bloco 1 · Aquecimento', missao: 'Bloco 2 · Missão do Dia', episodio: 'Bloco 3 · Episódio', desafio: 'Sábado · Desafio do Pai', explica: '“Me explica”', base: 'Celular na base', dormir: 'Dormir' };
+  const hs = { acordar: 'Acordar', dever: 'Dever de casa', aquecimento: 'Bloco 1 · Aquecimento', missao: 'Bloco 2 · Missão do Dia', episodio: 'Bloco 3 · Episódio', desafio: 'Sábado · Desafio do Pai', explica: '“Me explica”', base: 'Celular na base', dormir: 'Dormir' };
   const hin = {};
   raiz.append(h('div', { class: 'card stack' }, h('h2', { style: { margin: 0 } }, 'Horários'),
     h('p', { class: 'small muted', style: { margin: 0 } }, 'Ajuste à agenda do reforço. A ordem e a duração dos blocos é o que não deve mudar. Se o reforço ocupar a manhã, mova a Missão para as 19h.'),
@@ -74,6 +76,14 @@ export default function config(ctx) {
     ...['bronze', 'prata', 'ouro'].map((k) => h('div', { class: 'form-row' }, h('div', { class: 'field' }, h('label', null, `${k[0].toUpperCase() + k.slice(1)} · XP`), nv[k]), h('div', { class: 'field', style: { gridColumn: 'span 2' } }, h('label', null, 'Recompensa'), rc[k]))),
     h('div', { class: 'field' }, h('label', null, 'Conquista do Mês (4 semanas Ouro seguidas)'), conq),
     h('button', { class: 'btn sm', onClick: () => { mutate((st) => { for (const k of ['bronze', 'prata', 'ouro']) { st.config.niveis[k] = Number(nv[k].value) || st.config.niveis[k]; st.config.recompensas[k] = rc[k].value.trim(); } st.config.conquistaMes = conq.value.trim(); }); salvar(); } }, 'Salvar níveis')));
+
+  // ---------- tarefas de casa ----------
+  const teto = h('input', { type: 'number', min: 15, max: 240, step: 5, value: c.tetoTarefaMin, 'aria-label': 'Teto de tarefa por noite, em minutos' });
+  const xpT = h('input', { type: 'number', min: 0, max: 50, step: 1, value: c.xpTarefa, 'aria-label': 'XP por tarefa de casa' });
+  raiz.append(h('div', { class: 'card stack' }, h('h2', { style: { margin: 0 } }, 'Tarefas de casa'),
+    h('p', { class: 'small muted', style: { margin: 0 } }, 'O plano não prevê dever de casa na tabela de XP, então por padrão tarefa NÃO dá XP (0). Se quiser, dê um valor pequeno por tarefa enviada. O teto avisa quando a noite está pesada: o plano pede para não aumentar as horas.'),
+    h('div', { class: 'form-row' }, h('div', { class: 'field' }, h('label', null, 'Teto de tarefa por noite (min)'), teto), h('div', { class: 'field' }, h('label', null, 'XP por tarefa enviada'), xpT)),
+    h('button', { class: 'btn sm', onClick: () => { mutate((st) => { st.config.tetoTarefaMin = Number(teto.value) || 60; st.config.xpTarefa = Math.max(0, Number(xpT.value) || 0); }); salvar(); } }, 'Salvar')));
 
   // ---------- dias livres ----------
   const dl = h('input', { type: 'date', 'aria-label': 'Novo dia livre' });
@@ -134,15 +144,25 @@ export default function config(ctx) {
     if (!f) return;
     try {
       if (!(await confirmar('Importar este backup substitui TODOS os dados atuais deste aparelho. Continuar?', { ok: 'Importar', perigo: true }))) return;
-      importarJson(await f.text());
-      toast('Backup importado'); re();
+      const dados = JSON.parse(await f.text());
+      const imagens = dados._anexos || {};
+      delete dados._anexos;
+      importarJson(JSON.stringify(dados));
+      for (const [id, a] of Object.entries(imagens)) await salvarBlob(await base64ParaBlob(a.tipo, a.dados), { id, sync: false });
+      toast(`Backup importado${Object.keys(imagens).length ? ` (com ${Object.keys(imagens).length} imagens)` : ''}`); re();
     } catch (e) { toast(String(e.message || e)); }
   });
   raiz.append(h('div', { class: 'card stack sm' }, h('h2', { style: { margin: 0 } }, 'Backup e privacidade'),
     h('p', { class: 'small', style: { margin: 0 } }, 'Todos os dados ficam neste aparelho (no navegador). Nada é enviado para a internet. Para usar em dois aparelhos (o do Luan e o do pai), exporte aqui e importe no outro. Faça backup de vez em quando.'),
     c.ultimoBackup ? h('p', { class: 'small muted', style: { margin: 0 } }, `Último backup: ${fmtDia(c.ultimoBackup)}`) : null,
     h('div', { class: 'row' },
-      h('button', { class: 'btn sm primary', onClick: () => { baixarArquivo(`missao6ano-backup-${hoje}.json`, exportarJson()); mutate((st) => { st.config.ultimoBackup = hoje; }); re(); } }, '⬇ Exportar backup'),
+      h('button', { class: 'btn sm primary', onClick: async () => {
+        const dados = JSON.parse(exportarJson());
+        dados._anexos = {};
+        for (const a of await listarAnexos()) dados._anexos[a.id] = await blobParaBase64(await obterBlob(a.id));
+        baixarArquivo(`missao6ano-backup-${hoje}.json`, JSON.stringify(dados));
+        mutate((st) => { st.config.ultimoBackup = hoje; }); re();
+      } }, '⬇ Exportar backup (com imagens)'),
       h('button', { class: 'btn sm', onClick: () => arq.click() }, '⬆ Importar backup'), arq,
       h('button', { class: 'btn sm danger', onClick: async () => {
         if (!(await confirmar('Apagar TODOS os dados (XP, provas, erros, cartas, tudo) deste aparelho? Isto não pode ser desfeito.', { ok: 'Apagar tudo', perigo: true }))) return;

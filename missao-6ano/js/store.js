@@ -16,7 +16,9 @@ export const CONFIG_PADRAO = {
   inicioBimestre4: '2026-10-12', // 1ª segunda-feira da rampa (4º bimestre); editável em Configurações
   faseForcada: null,
   sprintMin: {},
-  horarios: { acordar: '07:00', aquecimento: '07:30', missao: '07:45', episodio: '08:15', escola: '12:30', explica: '20:00', base: '20:30', dormir: '21:00', desafio: '09:00' },
+  horarios: { dever: '18:30', acordar: '07:00', aquecimento: '07:30', missao: '07:45', episodio: '08:15', escola: '12:30', explica: '20:00', base: '20:30', dormir: '21:00', desafio: '09:00' },
+  tetoTarefaMin: 60, // acima disso o app avisa que a noite está pesada (o plano recomenda NÃO aumentar as horas)
+  xpTarefa: 0, // XP por tarefa de casa concluída (0 = desligado: o XP do plano não prevê tarefas)
   niveis: { bronze: 150, prata: 200, ouro: 250 },
   recompensas: {
     bronze: '+30 min de jogo no sábado',
@@ -59,6 +61,7 @@ function estadoInicial() {
     professoras: { notas: [], respostas: {} },
     leituras: [],
     desafios: [],
+    tarefas: [],
     trilha: {},
     flags: { cartaLida: false, boasVindasPai: false },
   };
