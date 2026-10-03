@@ -1,0 +1,16 @@
+{
+  "name": "Missão 6º Ano",
+  "short_name": "Missão 6º Ano",
+  "description": "Plano de estudos do Luan: missões curtas, jogo de XP e acompanhamento do pai.",
+  "lang": "pt-BR",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#14295f",
+  "theme_color": "#14295f",
+  "icons": [
+    { "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "assets/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
