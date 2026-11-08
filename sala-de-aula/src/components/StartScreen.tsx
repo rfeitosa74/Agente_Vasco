@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { getJson, toErro } from '../api';
+import { getJson, IS_ARTIFACT, toErro } from '../api';
 import type { ApiErro, Material } from '../types';
+import { DESCRICAO_FORMATOS, FORMATOS_ACEITOS } from '../material';
 import { ErrorBox } from './ErrorBox';
 
 interface Sample {
@@ -57,7 +58,7 @@ export function StartScreen({ carregando, erro, onStart, onRetry }: Props) {
   };
   const pronto = !!arquivo || texto.trim().length >= 40;
   const comecar = () => {
-    if (arquivo) onStart({ tipo: 'pdf', nome: arquivo.name, arquivo });
+    if (arquivo) onStart({ tipo: 'arquivo', nome: arquivo.name, arquivo });
     else onStart({ tipo: 'texto', nome: nome.trim() || 'Minhas anotações', texto: texto.trim() });
   };
 
@@ -65,9 +66,14 @@ export function StartScreen({ carregando, erro, onStart, onRetry }: Props) {
     <main className="start">
       <header className="start-head">
         <h1>Minha sala de aula</h1>
-        <p>Envie a matéria em PDF ou cole suas anotações. O quadro, o caderno e o tutor vão trabalhar com esse material.</p>
+        <p>Envie a matéria (PDF, Word, foto{IS_ARTIFACT ? '' : ', áudio ou vídeo'}) ou cole suas anotações. O quadro, o caderno e o tutor vão trabalhar com esse material.</p>
       </header>
 
+      {IS_ARTIFACT && (
+        <div className="setup-note">
+          Esta versão roda dentro do Claude, com a sua conta, sem chaves. Na primeira análise, o Claude pede permissão: clique em <b>Permitir</b>. Aqui não há microfone: o tutor e o “Agora eu explico” são por escrito.
+        </div>
+      )}
       {status && !status.chaveConfigurada && (
         <div className="setup-note" role="alert">
           <strong>Configuração pendente:</strong> o servidor ainda não tem a chave da API Gemini. Crie o arquivo <code>.env</code> com{' '}
@@ -76,7 +82,7 @@ export function StartScreen({ carregando, erro, onStart, onRetry }: Props) {
       )}
       <div className="start-grid">
         <section className="start-card">
-          <h2>Enviar um PDF</h2>
+          <h2>Enviar um arquivo</h2>
           <div
             className={`dropzone ${arrastando ? 'over' : ''} ${arquivo ? 'has-file' : ''}`}
             onDragOver={(e) => {
@@ -101,12 +107,13 @@ export function StartScreen({ carregando, erro, onStart, onRetry }: Props) {
               </>
             ) : (
               <>
-                <strong>Arraste o PDF aqui</strong>
-                <span>ou clique para escolher (até 19 MB)</span>
+                <strong>Arraste o arquivo aqui</strong>
+                <span>ou clique para escolher</span>
+                <span className="formatos">{DESCRICAO_FORMATOS}</span>
               </>
             )}
           </div>
-          <input ref={fileRef} type="file" accept="application/pdf,.pdf" hidden onChange={(e) => escolher(e.target.files?.[0])} />
+          <input ref={fileRef} type="file" accept={FORMATOS_ACEITOS} hidden onChange={(e) => escolher(e.target.files?.[0])} />
         </section>
 
         <section className="start-card">
@@ -152,6 +159,7 @@ export function StartScreen({ carregando, erro, onStart, onRetry }: Props) {
         </section>
       )}
 
+      {!IS_ARTIFACT && (
       <section className="diagnostics">
         <button className="btn btn-link" onClick={verificar} disabled={verificando}>
           {verificando ? 'Verificando…' : 'Verificar configuração e modelos'}
@@ -167,6 +175,7 @@ export function StartScreen({ carregando, erro, onStart, onRetry }: Props) {
           </ul>
         )}
       </section>
+      )}
     </main>
   );
 }

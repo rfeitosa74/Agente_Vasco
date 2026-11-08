@@ -21,6 +21,10 @@ A chave da OpenAI **não é usada** por este projeto; guarde-a, mas não precisa
 2. Abra o endereço, digite a senha e pronto. O navegador lembra de você por 30 dias.
 
 ## Bom saber
+- **Atualizações:** quando o código muda no GitHub (no branch escolhido), o Render publica a nova versão sozinho em
+  alguns minutos. Dá para acompanhar em **Events**, no painel do serviço.
+- **Formatos:** o site aceita PDF, Word (.docx), texto, fotos, áudios e vídeos (até 100 MB). No plano grátis, vídeos
+  grandes podem demorar alguns minutos para serem enviados e analisados.
 - **Plano grátis:** o site "dorme" depois de 15 minutos sem uso; o primeiro acesso depois disso leva cerca de 1 minuto.
   No painel do Render, em **Settings → Instance Type**, o plano **Starter** (cerca de US$ 7 por mês) fica sempre ligado.
 - **Trocar a chave ou a senha:** no serviço, abra **Environment**, edite o valor e clique em **Save Changes**. Trocar a

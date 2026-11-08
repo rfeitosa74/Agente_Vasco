@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ApiError, postForm, postJson, toErro } from './api';
+import { ApiError, IS_ARTIFACT, postForm, postJson, toErro } from './api';
+import { TutorChat, type TutorChatHandle } from './components/TutorChat';
 
 async function sair() {
   await postJson('/api/logout', {}).catch(() => {});
   window.location.reload();
 }
 import { openPdf, type PdfDoc } from './pdf';
+import { prepararArquivo, segundosDe } from './material';
 import { describeBoard, listElements, renderBoardSvg, SVG_KINDS } from '../shared/board.js';
 import type { Analise, ApiErro, BoardState, Conceito, Direcao, ImagemGerada, Material, Mensagem } from './types';
 import { StartScreen } from './components/StartScreen';
@@ -64,7 +66,7 @@ export default function App({ podeSair = false }: { podeSair?: boolean }) {
   const [perguntando, setPerguntando] = useState(false);
   const [nivel, setNivel] = useState('');
   const [explicarAberto, setExplicarAberto] = useState(false);
-  const [original, setOriginal] = useState<{ pagina?: number } | null>(null);
+  const [original, setOriginal] = useState<{ pagina?: number; tempo?: number } | null>(null);
   const [info, setInfo] = useState<InfoState | null>(null);
   const [liveSnap, setLiveSnap] = useState<LiveSnapshot>({ status: 'desconectado', muted: false, erro: '', dica: '', modelo: '', transcript: [], ferramenta: '', nivelMic: 0 });
 
@@ -81,6 +83,11 @@ export default function App({ podeSair = false }: { podeSair?: boolean }) {
     if (m.tipo === 'pdf' && m.arquivo) {
       fd.append('arquivo', m.arquivo, m.arquivo.name);
       fd.append('numPaginas', String(m.numPaginas || 0));
+      fd.append('nome', m.nome);
+    } else if (m.tipo === 'midia' && m.arquivo) {
+      fd.append('arquivo', m.arquivo, m.arquivo.name);
+      fd.append('midia', m.midia || '');
+      fd.append('duracao', String(m.duracao || 0));
       fd.append('nome', m.nome);
     } else {
       fd.append('texto', m.texto || '');
@@ -119,21 +126,28 @@ export default function App({ podeSair = false }: { podeSair?: boolean }) {
       try {
         let mat = { ...m };
         pdfRef.current = null;
-        if (m.tipo === 'pdf' && m.arquivo) {
+        if (m.tipo === 'arquivo' && m.arquivo) {
+          setCarregando('Lendo o arquivo…');
+          mat = await prepararArquivo(m.arquivo);
+          if (epoch !== epochRef.current) return;
+        }
+        if (mat.tipo === 'pdf' && mat.arquivo) {
           setCarregando('Abrindo o PDF…');
           let pdf: PdfDoc;
           try {
-            pdf = await openPdf(m.arquivo);
+            pdf = await openPdf(mat.arquivo);
           } catch (e) {
             throw new ApiError({ tipo: 'formato', mensagem: 'Não foi possível abrir este PDF (arquivo danificado ou protegido por senha).', comoResolver: 'Tente outro arquivo ou cole o texto.', detalhe: String(e) }, 400);
           }
           pdfRef.current = pdf;
           mat = { ...mat, numPaginas: pdf.numPages };
         }
-        setCarregando('Enviando o material ao servidor…');
+        setCarregando(mat.tipo === 'midia' && mat.midia !== 'imagem' ? 'Enviando o arquivo (áudios e vídeos podem levar alguns minutos)…' : 'Enviando o material…');
         await registrar(mat);
         if (epoch !== epochRef.current) return;
-        setCarregando('Analisando o conteúdo com o Gemini (texto e figuras)… isso pode levar alguns segundos.');
+        setCarregando(
+          `Analisando o conteúdo com ${IS_ARTIFACT ? 'o Claude' : 'o Gemini'}${mat.midia === 'audio' ? ' (ouvindo o áudio)' : mat.midia === 'video' ? ' (assistindo ao vídeo)' : mat.midia === 'imagem' ? ' (lendo a imagem)' : ' (texto e figuras)'}… isso pode levar alguns segundos.`
+        );
         const r = await withDocFor(mat, (docId) => postJson<{ analise: Analise }>('/api/analyze', { docId }));
         if (epoch !== epochRef.current) return;
         setMaterial(mat);
@@ -394,6 +408,7 @@ export default function App({ podeSair = false }: { podeSair?: boolean }) {
       highlights: S.current.highlights,
       mensagens: S.current.mensagens,
       nivel: S.current.nivel,
+      modo: IS_ARTIFACT ? 'texto' : 'voz',
       infografico:
         S.current.info?.fase === 'pronto' && S.current.info.direcao
           ? `"${S.current.info.direcao.titulo}" — ${S.current.info.direcao.ilustracaoPrincipal} Legendas: ${S.current.info.direcao.legendas.join(', ')}. Conclusão: ${S.current.info.direcao.conclusao}`
@@ -484,10 +499,21 @@ export default function App({ podeSair = false }: { podeSair?: boolean }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boardKey, liveSnap.status === 'ouvindo' || liveSnap.status === 'respondendo']);
 
+  const chatRef = useRef<TutorChatHandle>(null);
   const perguntarSobreInfografico = async () => {
     const st = infoRef.current;
     const img = st?.versoes[st.atual];
     if (!img) return;
+    if (IS_ARTIFACT) {
+      const { svgParaPng } = await import('./artifact/backend');
+      const svg = decodeURIComponent(escape(atob(img.data)));
+      const png = await svgParaPng(svg, 1600, '#ffffff');
+      chatRef.current?.perguntar(
+        `Quero perguntar sobre o infográfico "${st.direcao?.titulo || st.conceitoNome}" que está na tela${png ? ' (a imagem está anexada)' : ''}. O que ele mostra?`,
+        png ? [png] : []
+      );
+      return;
+    }
     const lt = getLive();
     if (!lt.ativo) await lt.start();
     // espera a sessão ficar pronta
@@ -580,6 +606,7 @@ export default function App({ podeSair = false }: { podeSair?: boolean }) {
             temPaginas={analise.temPaginas}
             onRetry={() => conceito && carregarQuadro(conceito).catch(() => {})}
             onShowPage={(p) => setOriginal({ pagina: p })}
+            onShowTempo={analise.temTempo ? (t) => setOriginal({ tempo: segundosDe(t) ?? 0 }) : undefined}
           />
           <AskBar conceito={conceito} mensagens={mensagens} ocupado={perguntando} conceitoNome={conceitoNome} onAsk={perguntar} />
           {info && (
@@ -609,6 +636,9 @@ export default function App({ podeSair = false }: { podeSair?: boolean }) {
         />
       </main>
 
+      {IS_ARTIFACT ? (
+        <TutorChat ref={chatRef} contexto={ctxTutor} ferramentas={TUTOR_TOOLS} onToolCall={(n, a) => toolRef.current(n, a)} />
+      ) : (
       <TutorDock
         snap={liveSnap}
         onStart={() => void getLive().start()}
@@ -616,6 +646,7 @@ export default function App({ podeSair = false }: { podeSair?: boolean }) {
         onMute={(m) => liveRef.current?.setMuted(m)}
         onRetry={() => void getLive().retry()}
       />
+      )}
 
       {explicarAberto && conceito && (
         <ExplainModal
@@ -632,6 +663,8 @@ export default function App({ podeSair = false }: { podeSair?: boolean }) {
           analise={analise}
           pdf={pdfRef.current}
           paginaInicial={original.pagina}
+          tempoInicial={original.tempo}
+          temposConceito={conceito?.tempos || []}
           destacarPaginas={conceito?.paginas || []}
           onClose={() => setOriginal(null)}
         />

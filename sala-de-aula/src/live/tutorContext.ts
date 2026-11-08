@@ -56,12 +56,15 @@ export interface TutorCtx {
   mensagens: Mensagem[];
   infografico: string; // descrição do infográfico atual, se houver
   nivel: string;
+  modo?: 'voz' | 'texto';
 }
 
 export function buildSystemInstruction(c: TutorCtx): string {
   const a = c.analise;
   const linhas: string[] = [
-    'Você é o tutor por voz da "Minha sala de aula". Fala com um aluno de cerca de 11 anos, do fim do 6º ano do ensino fundamental, no Brasil.',
+    c.modo === 'texto'
+      ? 'Você é o tutor da "Minha sala de aula" e conversa POR ESCRITO, num chat, com um aluno de cerca de 11 anos, do fim do 6º ano do ensino fundamental, no Brasil.'
+      : 'Você é o tutor por voz da "Minha sala de aula". Fala com um aluno de cerca de 11 anos, do fim do 6º ano do ensino fundamental, no Brasil.',
     'Fale SEMPRE em português do Brasil, com respostas BREVES (2 a 4 frases), didáticas e acolhedoras. Faça uma pergunta de cada vez para checar a compreensão. Adapte o nível se o aluno pedir algo mais simples ou mais avançado.',
     'Baseie-se no material de estudo descrito abaixo. Se usar algo que não está no material, diga isso. Não invente fatos.',
     'Você NÃO vê a tela. Tudo o que está na tela é descrito aqui e atualizado pelo aplicativo.',
@@ -71,9 +74,10 @@ export function buildSystemInstruction(c: TutorCtx): string {
   ];
   if (c.nivel) linhas.push(`Nível de explicação pedido pelo aluno: ${c.nivel}.`);
   if (a) {
-    linhas.push('', `MATERIAL: "${a.titulo}"${a.disciplina ? ` (${a.disciplina})` : ''}`, `Resumo: ${a.resumo}`);
+    linhas.push('', `MATERIAL: "${a.titulo}"${a.disciplina ? ` (${a.disciplina})` : ''}${a.midia ? ` — o material original é ${a.midia === 'video' ? 'um vídeo' : a.midia === 'audio' ? 'um áudio' : 'uma imagem'}` : ''}`, `Resumo: ${a.resumo}`);
     linhas.push('Conceitos do caderno (id — nome):');
-    for (const k of a.conceitos) linhas.push(`- ${k.id} — ${k.nome}${k.paginas.length ? ` (p. ${k.paginas.join(', ')})` : ''}`);
+    for (const k of a.conceitos)
+      linhas.push(`- ${k.id} — ${k.nome}${k.paginas.length ? ` (p. ${k.paginas.join(', ')})` : k.tempos?.length ? ` (momentos do ${a.midia === 'video' ? 'vídeo' : 'áudio'}: ${k.tempos.join(', ')})` : ''}`);
   }
   if (c.conceito) {
     const k = c.conceito;

@@ -27,6 +27,7 @@ export const ANALISE_SCHEMA = {
           titulo: { type: 'string', description: 'Título da seção como aparece no material (ou descrição curta se não houver título).' },
           paginaInicio: { type: 'integer' },
           paginaFim: { type: 'integer' },
+          inicio: { type: 'string', description: 'Só para áudio/vídeo: momento em que a parte começa, no formato mm:ss.' },
         },
         required: ['id', 'titulo'],
       },
@@ -56,6 +57,7 @@ export const ANALISE_SCHEMA = {
             },
             description: 'Figuras do material relacionadas ao conceito.',
           },
+          tempos: { type: 'array', items: { type: 'string' }, description: 'Só para áudio/vídeo: momentos (mm:ss) em que o conceito é explicado.' },
           perguntaCentral: { type: 'string', description: 'A pergunta principal que o aluno deve conseguir responder sobre o conceito.' },
           representacao: { type: 'string', enum: KINDS, description: 'Representação visual mais adequada.' },
           motivoRepresentacao: { type: 'string' },
@@ -67,7 +69,16 @@ export const ANALISE_SCHEMA = {
   required: ['analisavel', 'titulo', 'resumo', 'conceitos'],
 };
 
-export function analisePrompt({ temPaginas, numPaginas, nomeArquivo }) {
+const REFERENCIAS_MIDIA = {
+  imagem:
+    'O material é uma IMAGEM (por exemplo, foto de caderno, livro ou lousa). Leia todo o texto e os desenhos dela. Não há páginas: deixe "paginas" vazio e use as partes da imagem (títulos, quadros, tópicos) como seções. Se a foto estiver ilegível, responda analisavel=false.',
+  audio:
+    'O material é um ÁUDIO (por exemplo, aula gravada). Use o que é realmente falado. Não há páginas: deixe "paginas" vazio. Em "tempos", indique os momentos (mm:ss) em que cada conceito é explicado, e em cada seção o "inicio" (mm:ss). Não invente momentos fora da duração.',
+  video:
+    'O material é um VÍDEO (por exemplo, videoaula). Use o que é falado e o que aparece na tela (lousa, slides, desenhos). Não há páginas: deixe "paginas" vazio. Em "tempos", indique os momentos (mm:ss) em que cada conceito é explicado, e em cada seção o "inicio" (mm:ss). Não invente momentos fora da duração.',
+};
+
+export function analisePrompt({ temPaginas, numPaginas, nomeArquivo, midia = '', duracao = '' }) {
   return `Analise o material de estudo anexado${nomeArquivo ? ` ("${nomeArquivo}")` : ''} e prepare uma aula sobre ele.
 
 ${PUBLICO}
@@ -76,7 +87,9 @@ Regras:
 - Use apenas o conteúdo REAL do material. Leia também as figuras, tabelas e legendas quando houver.
 - Identifique de 3 a 8 conceitos principais (no máximo 10), na ordem em que fazem sentido para estudar.
 - ${
-    temPaginas
+    midia
+      ? `${REFERENCIAS_MIDIA[midia]}${duracao ? ` Duração total: ${duracao}.` : ''}`
+      : temPaginas
       ? `O material é um PDF com ${numPaginas} páginas. Indique em "paginas" os números reais das páginas (de 1 a ${numPaginas}) onde cada conceito aparece. Não invente páginas.`
       : 'O material NÃO tem páginas (são anotações em texto). Deixe "paginas" vazio e use as seções (títulos ou partes do texto) como referência. Não invente numeração de páginas.'
   }
@@ -233,7 +246,7 @@ export const REGRAS_QUADRO = `Regras do quadro (lousa verde, área de 1000 x 560
 - Processo: só para sequências reais; cíclico apenas se a última etapa leva de volta à primeira.
 - Gráfico: use dados do material; se precisar de valores ilustrativos, marque dadosIlustrativos=true.
 - "pergunta" e "titulo" devem ser específicos do conceito. Nada de frases de preenchimento.
-- Fontes: "p. N" apenas se o material tiver páginas; caso contrário, o nome da seção. Não invente numeração.
+- Fontes: "p. N" apenas se o material tiver páginas; para áudio/vídeo, o momento no formato mm:ss; caso contrário, o nome da seção. Não invente numeração nem momentos.
 - Use figuraOriginal quando houver no PDF uma figura que ajude a conferir o conceito.`;
 
 export function boardPrompt({ conceito, temPaginas, pedido, quadroAtual, contextoExtra }) {
@@ -246,7 +259,7 @@ Resumo: ${conceito.resumo}
 O que o material diz: ${conceito.conteudo}
 Pergunta central: ${conceito.perguntaCentral}
 ${conceito.figuras?.length ? `Figuras do material: ${conceito.figuras.map((f) => `${f.pagina ? `p. ${f.pagina}: ` : ''}${f.descricao}`).join('; ')}` : ''}
-${temPaginas ? `Páginas: ${(conceito.paginas || []).join(', ') || 'não informadas'}` : 'O material não tem páginas.'}
+${temPaginas ? `Páginas: ${(conceito.paginas || []).join(', ') || 'não informadas'}` : conceito.tempos?.length ? `O material é um áudio/vídeo; momentos em que o conceito aparece: ${conceito.tempos.join(', ')}. Nas fontes, use esses momentos (mm:ss).` : 'O material não tem páginas.'}
 Representação sugerida na análise: ${conceito.representacao}
 ${quadroAtual ? `\nQUADRO ATUAL (o aluno já viu este):\n${quadroAtual}\n` : ''}
 ${pedido ? `PEDIDO DO ALUNO/TUTOR PARA ESTA ATUALIZAÇÃO: ${pedido}\nAtenda ao pedido mantendo a precisão. Se o pedido for de uma visão diferente, mude a abordagem.` : ''}

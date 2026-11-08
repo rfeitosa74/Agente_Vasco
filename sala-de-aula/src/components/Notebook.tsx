@@ -1,4 +1,5 @@
 import type { Analise, Material } from '../types';
+import { formatarTempo } from '../material';
 
 interface Props {
   analise: Analise;
@@ -27,7 +28,17 @@ export function Notebook(p: Props) {
         <h2 className="nb-title">{analise.titulo}</h2>
         <p className="nb-meta">
           {p.material.nome}
-          {analise.temPaginas ? ` · ${analise.numPaginas} página${analise.numPaginas > 1 ? 's' : ''}` : ' · anotações em texto'}
+          {analise.temPaginas
+            ? ` · ${analise.numPaginas} página${analise.numPaginas > 1 ? 's' : ''}`
+            : p.material.midia === 'audio'
+            ? ` · áudio${p.material.duracao ? ` de ${formatarTempo(p.material.duracao)}` : ''}`
+            : p.material.midia === 'video'
+            ? ` · vídeo${p.material.duracao ? ` de ${formatarTempo(p.material.duracao)}` : ''}`
+            : p.material.midia === 'imagem'
+            ? ' · imagem'
+            : p.material.origem === 'Word'
+            ? ' · documento do Word'
+            : ' · anotações em texto'}
         </p>
         <p className="nb-summary">{analise.resumo}</p>
 
@@ -39,7 +50,13 @@ export function Notebook(p: Props) {
                 <span className="concept-name">{c.nome}</span>
                 <span className="concept-sum">{c.resumo}</span>
                 <span className="concept-ref">
-                  {c.paginas.length ? `p. ${c.paginas.join(', ')}` : c.secoes.length ? c.secoes.map(secaoNome).join(' · ') : ''}
+                  {c.paginas.length
+                    ? `p. ${c.paginas.join(', ')}`
+                    : c.tempos?.length
+                    ? `▶ ${c.tempos.join(', ')}`
+                    : c.secoes.length
+                    ? c.secoes.map(secaoNome).join(' · ')
+                    : ''}
                 </span>
               </button>
             </li>
@@ -63,7 +80,7 @@ export function Notebook(p: Props) {
             {p.infograficoOcupado ? 'Gerando infográfico…' : 'Criar infográfico'}
           </button>
           <button className="btn" onClick={p.onVerOriginal}>
-            Ver anotações originais
+            {p.material.midia === 'audio' ? 'Ouvir o áudio original' : p.material.midia === 'video' ? 'Ver o vídeo original' : 'Ver anotações originais'}
           </button>
           <button className="btn" onClick={p.onTrocar}>
             Trocar material

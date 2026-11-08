@@ -13,7 +13,19 @@ export class ApiError extends Error {
 /** Avisado quando o servidor pede login (sessão expirada ou ausente). */
 export const EVENTO_LOGIN = 'sala-login-necessario';
 
+/** Versão publicada como artefato do Claude: sem servidor, usa o Claude da conta de quem abre. */
+export const IS_ARTIFACT = import.meta.env.VITE_ARTIFACT === '1';
+
 async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
+  if (IS_ARTIFACT) {
+    const { handle } = await import('./artifact/backend');
+    try {
+      return (await handle(url, init)) as T;
+    } catch (e) {
+      if (e instanceof ApiError) throw e;
+      throw new ApiError({ tipo: 'desconhecido', mensagem: e instanceof Error ? e.message : String(e) }, 500);
+    }
+  }
   let res: Response;
   try {
     res = await fetch(url, { ...init, credentials: 'same-origin' });

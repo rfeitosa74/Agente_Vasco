@@ -12,6 +12,7 @@ import { Modality } from '@google/genai';
 import {
   ai,
   AppError,
+  enviarArquivo,
   generateImage,
   generateJson,
   generateText,
@@ -39,7 +40,40 @@ const abrirNavegador = process.argv.includes('--abrir');
 const app = express();
 app.set('trust proxy', 1); // HTTPS termina no proxy do Render
 app.use(express.json({ limit: '40mb' }));
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
+const LIMITE_MIDIA_MB = Number(process.env.LIMITE_MIDIA_MB || 100);
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: LIMITE_MIDIA_MB * 1024 * 1024 } });
+
+// Formatos de imagem, áudio e vídeo que o Gemini entende diretamente.
+const MIDIA = {
+  imagem: { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/heic': 'heic', 'image/heif': 'heif' },
+  audio: {
+    'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/wave': 'wav', 'audio/aac': 'aac',
+    'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a', 'audio/m4a': 'm4a', 'audio/ogg': 'ogg', 'audio/flac': 'flac', 'audio/x-flac': 'flac',
+    'audio/aiff': 'aiff', 'audio/x-aiff': 'aiff', 'audio/webm': 'webm', 'audio/opus': 'opus',
+  },
+  video: {
+    'video/mp4': 'mp4', 'video/mpeg': 'mpeg', 'video/quicktime': 'mov', 'video/x-msvideo': 'avi', 'video/avi': 'avi',
+    'video/x-flv': 'flv', 'video/webm': 'webm', 'video/x-ms-wmv': 'wmv', 'video/3gpp': '3gp',
+  },
+};
+// O Gemini prefere estes nomes de tipo
+const MIME_GEMINI = { 'audio/x-m4a': 'audio/mp4', 'audio/m4a': 'audio/mp4', 'audio/mp3': 'audio/mpeg', 'audio/x-wav': 'audio/wav', 'audio/wave': 'audio/wav', 'audio/x-flac': 'audio/flac', 'audio/x-aiff': 'audio/aiff', 'video/avi': 'video/x-msvideo' };
+const POR_EXTENSAO = {
+  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', heic: 'image/heic', heif: 'image/heif',
+  mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4', aac: 'audio/aac', ogg: 'audio/ogg', oga: 'audio/ogg', flac: 'audio/flac', aiff: 'audio/aiff', opus: 'audio/ogg',
+  mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime', avi: 'video/x-msvideo', webm: 'video/webm', mpeg: 'video/mpeg', mpg: 'video/mpeg', wmv: 'video/x-ms-wmv', '3gp': 'video/3gpp', flv: 'video/x-flv',
+};
+function tipoDeMidia(mime, nomeArquivo) {
+  let m = String(mime || '').split(';')[0].toLowerCase();
+  const ext = String(nomeArquivo || '').split('.').pop().toLowerCase();
+  if ((!m || m === 'application/octet-stream') && POR_EXTENSAO[ext]) m = POR_EXTENSAO[ext];
+  for (const [tipo, tabela] of Object.entries(MIDIA)) if (tabela[m]) return { tipo, mime: MIME_GEMINI[m] || m };
+  if (POR_EXTENSAO[ext]) {
+    const mm = POR_EXTENSAO[ext];
+    for (const [tipo, tabela] of Object.entries(MIDIA)) if (tabela[mm]) return { tipo, mime: MIME_GEMINI[mm] || mm };
+  }
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Login com senha (obrigatório quando o site fica na internet)
@@ -146,8 +180,19 @@ function getDoc(id) {
   return d;
 }
 
+const DESCRICAO_MIDIA = { imagem: 'uma imagem (por exemplo, foto do caderno ou do livro)', audio: 'um áudio (por exemplo, uma aula gravada)', video: 'um vídeo (por exemplo, uma videoaula)' };
+
 function docParts(doc) {
   if (doc.tipo === 'pdf') return [{ inlineData: { mimeType: 'application/pdf', data: doc.base64 } }];
+  if (doc.tipo === 'midia') {
+    const arq = doc.fileUri ? { fileData: { fileUri: doc.fileUri, mimeType: doc.mime } } : { inlineData: { mimeType: doc.mime, data: doc.base64 } };
+    return [
+      arq,
+      {
+        text: `O MATERIAL DE ESTUDO é ${DESCRICAO_MIDIA[doc.midia]}${doc.nome ? ` ("${doc.nome}")` : ''}${doc.duracao ? `, com duração de ${formatarTempo(doc.duracao)}` : ''}. Use o que é realmente dito e mostrado nele.`,
+      },
+    ];
+  }
   return [{ text: `MATERIAL DE ESTUDO (anotações em texto${doc.nome ? `: "${doc.nome}"` : ''}):\n"""\n${doc.texto}\n"""` }];
 }
 
@@ -156,9 +201,25 @@ app.post(
   upload.single('arquivo'),
   wrap(async (req, res) => {
     let doc;
-    if (req.file) {
+    const midia = req.file ? tipoDeMidia(req.file.mimetype, req.file.originalname) : null;
+    if (req.file && midia) {
+      const nome = req.body.nome || req.file.originalname;
+      doc = { tipo: 'midia', midia: midia.tipo, mime: midia.mime, nome, duracao: Number(req.body.duracao) || 0 };
+      // Arquivos pequenos vão junto com cada pedido; os grandes (e os vídeos) pela API de arquivos.
+      if (req.file.size > 15 * 1024 * 1024 || midia.tipo === 'video') {
+        const f = await enviarArquivo(req.file.buffer, midia.mime, nome);
+        doc.fileUri = f.uri;
+      } else doc.base64 = req.file.buffer.toString('base64');
+    } else if (req.file) {
       const isPdf = req.file.mimetype === 'application/pdf' || req.file.buffer.subarray(0, 5).toString() === '%PDF-';
-      if (!isPdf) throw new AppError('formato', 'O arquivo enviado não é um PDF.', 'Envie um arquivo .pdf ou cole o texto das anotações.', '', 400);
+      if (!isPdf)
+        throw new AppError(
+          'formato',
+          'Este tipo de arquivo não é aceito.',
+          'Envie PDF, Word (.docx), texto (.txt), imagem (JPG, PNG, WebP), áudio (MP3, WAV, M4A, OGG, FLAC) ou vídeo (MP4, MOV, WebM, AVI).',
+          `${req.file.mimetype} ${req.file.originalname}`,
+          400
+        );
       if (req.file.size > 19 * 1024 * 1024)
         throw new AppError('tamanho', 'O PDF é grande demais (limite de 19 MB).', 'Divida o PDF em partes menores ou envie só as páginas da matéria.', '', 413);
       doc = {
@@ -179,6 +240,18 @@ app.post(
   })
 );
 
+function formatarTempo(seg) {
+  const s = Math.max(0, Math.round(Number(seg) || 0));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+  return h ? `${h}:${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}` : `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+}
+/** Converte "mm:ss" ou "h:mm:ss" em segundos (ou null). */
+function segundos(t) {
+  const m = /^\s*(?:(\d+):)?(\d{1,2}):(\d{2})\s*$/.exec(String(t || ''));
+  if (!m) return null;
+  return Number(m[1] || 0) * 3600 + Number(m[2]) * 60 + Number(m[3]);
+}
+
 function slug(s, fb) {
   return (
     String(s || '')
@@ -197,7 +270,7 @@ app.post(
     const doc = getDoc(req.body.docId);
     const temPaginas = doc.tipo === 'pdf' && doc.numPaginas > 0;
     const { data, modelo } = await generateJson({
-      parts: [...docParts(doc), { text: P.analisePrompt({ temPaginas, numPaginas: doc.numPaginas, nomeArquivo: doc.nome }) }],
+      parts: [...docParts(doc), { text: P.analisePrompt({ temPaginas, numPaginas: doc.numPaginas, nomeArquivo: doc.nome, midia: doc.midia, duracao: doc.duracao ? formatarTempo(doc.duracao) : '' }) }],
       schema: P.ANALISE_SCHEMA,
       temperature: 0.2,
       acao: 'analisar o material',
@@ -213,11 +286,18 @@ app.post(
     }
     // Normalização: ids únicos e páginas reais
     const pageOk = (p) => temPaginas && Number.isInteger(p) && p >= 1 && p <= doc.numPaginas;
+    const temTempo = doc.tipo === 'midia' && doc.midia !== 'imagem';
+    // Marcas de tempo só valem para áudio/vídeo e dentro da duração real.
+    const tempoOk = (t) => {
+      const sec = segundos(t);
+      return temTempo && sec !== null && (!doc.duracao || sec <= doc.duracao + 5);
+    };
     const ids = new Set();
     const secoes = (data.secoes || []).map((s, i) => {
       const o = { id: slug(s.id || s.titulo, `secao${i + 1}`), titulo: String(s.titulo || `Parte ${i + 1}`) };
       if (pageOk(s.paginaInicio)) o.paginaInicio = s.paginaInicio;
       if (pageOk(s.paginaFim)) o.paginaFim = s.paginaFim;
+      if (tempoOk(s.inicio)) o.inicio = formatarTempo(segundos(s.inicio));
       return o;
     });
     const conceitos = data.conceitos.slice(0, 10).map((c, i) => {
@@ -235,6 +315,7 @@ app.post(
         paginas: [...new Set((c.paginas || []).filter(pageOk))].sort((a, b) => a - b),
         secoes: (c.secoes || []).map((s) => slug(s, '')).filter((s) => secoes.some((x) => x.id === s)),
         figuras: (c.figuras || []).map((f) => ({ descricao: String(f.descricao || ''), ...(pageOk(f.pagina) ? { pagina: f.pagina } : {}) })),
+        tempos: [...new Set((c.tempos || []).filter(tempoOk).map((t) => formatarTempo(segundos(t))))].slice(0, 6),
       };
     });
     res.json({
@@ -244,6 +325,9 @@ app.post(
         resumo: String(data.resumo || ''),
         temPaginas,
         numPaginas: doc.numPaginas || 0,
+        temTempo,
+        midia: doc.midia || '',
+        duracao: doc.duracao || 0,
         secoes,
         conceitos,
       },
@@ -579,6 +663,16 @@ app.get(
     );
   })
 );
+
+// Erros do envio de arquivos (ex.: arquivo grande demais)
+app.use('/api', (err, _req, res, next) => {
+  if (err?.code === 'LIMIT_FILE_SIZE')
+    return res.status(413).json({
+      erro: { tipo: 'tamanho', mensagem: `O arquivo é grande demais (limite de ${LIMITE_MIDIA_MB} MB).`, comoResolver: 'Envie um arquivo menor, ou corte o áudio/vídeo só na parte da matéria.' },
+    });
+  if (err) return res.status(400).json({ erro: { tipo: 'formato', mensagem: 'Não foi possível receber o arquivo.', detalhe: String(err.message || err) } });
+  next();
+});
 
 app.use('/api', (_req, res) => res.status(404).json({ erro: { tipo: 'rota', mensagem: 'Rota não encontrada.' } }));
 

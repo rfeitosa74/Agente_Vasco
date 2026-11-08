@@ -11,6 +11,7 @@ export interface Conceito {
   paginas: number[];
   secoes: string[];
   figuras: { pagina?: number; descricao: string }[];
+  tempos?: string[]; // áudio/vídeo: momentos mm:ss
 }
 
 export interface Secao {
@@ -18,6 +19,7 @@ export interface Secao {
   titulo: string;
   paginaInicio?: number;
   paginaFim?: number;
+  inicio?: string;
 }
 
 export interface Analise {
@@ -26,17 +28,26 @@ export interface Analise {
   resumo: string;
   temPaginas: boolean;
   numPaginas: number;
+  temTempo?: boolean;
+  midia?: string;
+  duracao?: number;
   secoes: Secao[];
   conceitos: Conceito[];
 }
 
+export type TipoMidia = 'imagem' | 'audio' | 'video';
+
 export interface Material {
-  tipo: 'pdf' | 'texto';
+  /** 'arquivo' = escolhido na tela inicial, ainda não identificado */
+  tipo: 'pdf' | 'texto' | 'midia' | 'arquivo';
   nome: string;
   arquivo?: File;
   texto?: string;
   exemplo?: boolean;
   numPaginas?: number;
+  midia?: TipoMidia;
+  duracao?: number; // segundos (áudio/vídeo)
+  origem?: string; // ex.: 'Word', quando o texto veio de um .docx
 }
 
 // Representação do quadro (ver shared/board.js)

@@ -59,7 +59,32 @@ Para o infográfico **não há substituição por outro modelo**: se o Nano Bana
 mostra o erro. As imagens são pedidas em **16:9 e 2K** (`imageConfig: { aspectRatio: '16:9', imageSize: '2K' }`). A
 legenda da imagem mostra o modelo que realmente respondeu e o tamanho real em pixels.
 
-## 4. Como funciona
+## 4. Formatos aceitos
+
+| Formato | Site (Gemini) | Artefato do Claude |
+|---|---|---|
+| PDF | sim (texto e figuras) | sim (texto e imagens das páginas) |
+| Word `.docx` | sim (o texto é extraído no navegador) | sim |
+| Texto `.txt` / `.md` ou anotações coladas | sim | sim |
+| Foto (JPG, PNG, WebP, HEIC) | sim | sim (JPG, PNG, WebP) |
+| Áudio (MP3, WAV, M4A, AAC, OGG, FLAC) | sim, com momentos (mm:ss) de cada conceito | não (o artefato não envia áudio ao Claude) |
+| Vídeo (MP4, MOV, WebM, AVI, MPEG) | sim, com momentos (mm:ss) de cada conceito | não |
+
+- Limites: PDF até 19 MB; áudio, vídeo e foto até 100 MB (`LIMITE_MIDIA_MB`). Vídeos e arquivos acima de 15 MB vão
+  pela API de arquivos do Gemini (ficam guardados lá por 48 horas).
+- Word antigo (`.doc`) não é aceito: salve como `.docx` ou exporte como PDF. Imagens dentro do Word não são lidas;
+  para elas, exporte como PDF.
+- Em áudio e vídeo, os momentos citados pelo Gemini são conferidos com a duração real; os que não existem são
+  descartados. Na janela “Material original”, botões levam o player direto ao momento de cada conceito.
+
+## 5. Versão como artefato do Claude
+
+`npm run build:artefato` gera, em `dist-artefato/`, uma versão que roda dentro do claude.ai, com a conta de quem abre,
+sem chaves de API. Nessa versão o Claude faz a análise, o quadro, as respostas e a avaliação; o tutor e o “Agora eu
+explico” são por escrito (o artefato não pode usar o microfone) e o infográfico é desenhado pelo Claude em SVG (o Nano
+Banana Pro não pode ser chamado de dentro do artefato). Teste: `tests/artifact-e2e.mjs`.
+
+## 6. Como funciona
 
 - **Início**: o PDF é aberto no navegador (pdf.js, para contar e mostrar as páginas) e enviado ao servidor, que pede ao
   Gemini a análise do conteúdo real, incluindo figuras. Números de página inexistentes são descartados; anotações em
@@ -87,7 +112,7 @@ legenda da imagem mostra o modelo que realmente respondeu e o tamanho real em pi
   “Perguntar ao tutor sobre este infográfico”.
 - **Trocar material** encerra a conversa por voz e apaga quadros, perguntas e infográficos, para não misturar materiais.
 
-## 5. Testes
+## 7. Testes
 
 ```bash
 npm test            # testes unitários (sem rede)
@@ -102,11 +127,13 @@ npm run build
 node tests/fake-gemini.mjs 8787 &
 GEMINI_API_KEY=teste GEMINI_TEST_BASE_URL=http://127.0.0.1:8787 PORT=5180 NODE_ENV=production node server/index.js &
 APP=http://127.0.0.1:5180 FAKE=http://127.0.0.1:8787 npm run e2e
+# formatos (crie uma pasta com materia.docx, aula.wav, aula.mp4 e foto.png):
+MIDIA=pasta node tests/formatos-e2e.mjs
 ```
 
 `GEMINI_TEST_BASE_URL` serve **apenas** para esses testes; não defina essa variável no uso normal.
 
-## 6. Verificação manual com a sua chave
+## 8. Verificação manual com a sua chave
 
 Os itens abaixo dependem da API real e de áudio audível, e precisam ser conferidos por você:
 

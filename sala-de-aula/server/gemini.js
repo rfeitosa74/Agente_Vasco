@@ -271,3 +271,24 @@ export async function generateImage({ parts }) {
     textoDoModelo: texto,
   };
 }
+
+/**
+ * Envia um arquivo grande (áudio, vídeo) pela API de arquivos do Gemini e
+ * espera ele ficar pronto para uso. Os arquivos ficam lá por 48 horas.
+ */
+export async function enviarArquivo(buffer, mimeType, nome) {
+  let f;
+  try {
+    f = await ai().files.upload({ file: new Blob([buffer], { type: mimeType }), config: { mimeType, displayName: String(nome || 'material').slice(0, 100) } });
+    const inicio = Date.now();
+    while (String(f.state) === 'PROCESSING') {
+      if (Date.now() - inicio > 5 * 60 * 1000) throw new AppError('tempo', 'O Gemini demorou demais para processar o arquivo.', 'Tente um arquivo menor ou mais curto.', '', 504);
+      await new Promise((r) => setTimeout(r, 2500));
+      f = await ai().files.get({ name: f.name });
+    }
+  } catch (e) {
+    throw toAppError(e, 'enviar o arquivo ao Gemini');
+  }
+  if (String(f.state) === 'FAILED') throw new AppError('formato', 'O Gemini não conseguiu ler este arquivo.', 'Confira se o arquivo abre normalmente no computador, ou tente outro formato.', '', 422);
+  return { uri: f.uri, mimeType: f.mimeType || mimeType };
+}

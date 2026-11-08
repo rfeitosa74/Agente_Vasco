@@ -3,6 +3,7 @@ import { postForm, postJson, toErro } from '../api';
 import type { ApiErro, Conceito } from '../types';
 import { ErrorBox } from './ErrorBox';
 import { blobToWav16k } from '../live/audio';
+import { IS_ARTIFACT } from '../api';
 import { Modal } from './Modal';
 
 interface Avaliacao {
@@ -145,7 +146,10 @@ export function ExplainModal({ conceito, withDoc, onClose, onBeforeRecord, onRes
           <p className="explain-question">{pergunta}</p>
           {!avaliacao && (
             <>
-              <p className="muted">Responda com as suas palavras. Pode falar ou escrever — e corrigir o texto antes de terminar.</p>
+              <p className="muted">
+                {IS_ARTIFACT ? 'Responda com as suas palavras, por escrito.' : 'Responda com as suas palavras. Pode falar ou escrever — e corrigir o texto antes de terminar.'}
+              </p>
+              {!IS_ARTIFACT && (
               <div className="explain-rec">
                 {!gravando ? (
                   <button className="btn btn-blue" onClick={iniciarGravacao} disabled={transcrevendo || avaliando}>
@@ -163,6 +167,7 @@ export function ExplainModal({ conceito, withDoc, onClose, onBeforeRecord, onRes
                   </span>
                 )}
               </div>
+              )}
               {erroAudio && <ErrorBox erro={erroAudio} />}
               <label className="explain-label" htmlFor="explicacao">
                 Sua explicação (transcrição editável)

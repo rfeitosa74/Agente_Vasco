@@ -2,6 +2,22 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ApiErro, Direcao, ImagemGerada } from '../types';
 import { ErrorBox } from './ErrorBox';
 import { Modal } from './Modal';
+import { IS_ARTIFACT } from '../api';
+
+/** No artefato do Claude, downloads passam pela confirmação do Claude. */
+async function salvarNoArtefato(img: ImagemGerada, nome: string): Promise<string> {
+  const dl = await window.claude?.use('downloads').catch(() => null);
+  if (!dl) return 'O download não está disponível nesta visualização.';
+  try {
+    const bin = atob(img.data);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    await dl.save({ filename: nome, data: new Blob([bytes], { type: img.mimeType }) });
+    return '';
+  } catch (e: any) {
+    return e?.code === 'declined' ? '' : `Não foi possível baixar (${e?.code || e}).`;
+  }
+}
 
 export interface ObservacaoRevisao {
   categoria: string;
@@ -61,7 +77,18 @@ export function InfographicPanel({ st, liveAtivo, onRetry, onCorrigir, onRevisar
   const [real, setReal] = useState(false);
   const [instrucao, setInstrucao] = useState('');
   const [verDirecao, setVerDirecao] = useState(false);
-  const ext = img?.mimeType.includes('jpeg') ? 'jpg' : img?.mimeType.split('/')[1] || 'png';
+  const ext = img?.mimeType.includes('jpeg') ? 'jpg' : img?.mimeType.includes('svg') ? 'svg' : img?.mimeType.split('/')[1] || 'png';
+  const [erroDl, setErroDl] = useState('');
+  const BotaoBaixar = ({ cls, rotulo }: { cls: string; rotulo: string }) =>
+    IS_ARTIFACT ? (
+      <button className={cls} onClick={async () => img && setErroDl(await salvarNoArtefato(img, nomeArquivo))}>
+        {rotulo}
+      </button>
+    ) : (
+      <a className={cls} href={url} download={nomeArquivo}>
+        {rotulo}
+      </a>
+    );
   const nomeArquivo = `infografico-${st.conceitoNome.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-')}-v${st.atual + 1}.${ext}`;
 
   return (
@@ -78,14 +105,14 @@ export function InfographicPanel({ st, liveAtivo, onRetry, onCorrigir, onRevisar
 
       <ol className="info-steps">
         <li className={st.direcao ? 'done' : st.fase === 'direcao' ? 'active' : st.etapaErro === 'direcao' ? 'fail' : ''}>Direção visual</li>
-        <li className={img ? 'done' : st.fase === 'imagem' ? 'active' : st.etapaErro === 'imagem' ? 'fail' : ''}>Geração da imagem (Nano Banana Pro)</li>
+        <li className={img ? 'done' : st.fase === 'imagem' ? 'active' : st.etapaErro === 'imagem' ? 'fail' : ''}>{IS_ARTIFACT ? 'Desenho do infográfico (Claude, em SVG)' : 'Geração da imagem (Nano Banana Pro)'}</li>
       </ol>
 
       {(st.fase === 'direcao' || st.fase === 'imagem' || st.fase === 'corrigindo') && (
         <p className="info-wait">
           <span className="spinner" />{' '}
-          {st.fase === 'direcao' ? 'Preparando a direção visual a partir do material…' : st.fase === 'imagem' ? 'Gerando a imagem — isso pode levar até um minuto…' : 'Aplicando a correção na imagem…'}
-          {liveAtivo && ' Você pode continuar conversando com o tutor.'}
+          {st.fase === 'direcao' ? 'Preparando a direção visual a partir do material…' : st.fase === 'imagem' ? (IS_ARTIFACT ? 'O Claude está desenhando o infográfico — isso pode levar alguns minutos…' : 'Gerando a imagem — isso pode levar até um minuto…') : 'Aplicando a correção na imagem…'}
+          {(liveAtivo || IS_ARTIFACT) && ' Você pode continuar usando a sala enquanto isso.'}
         </p>
       )}
       {st.fase === 'erro' && st.erro && (
@@ -138,7 +165,9 @@ export function InfographicPanel({ st, liveAtivo, onRetry, onCorrigir, onRevisar
               Modelo usado: <b>{img.modelo}</b>
               {img.modelo !== img.modeloPedido && ` (pedido: ${img.modeloPedido})`}
               {dim && ` · ${dim.w}×${dim.h} px`}
-              {` · pedido: ${img.configUsada.aspectRatio || '—'}${img.configUsada.imageSize ? `, ${img.configUsada.imageSize}` : ' (o tamanho 2K foi recusado pela API)'}`}
+              {IS_ARTIFACT
+                ? ' · Nesta versão em artefato, o infográfico é desenhado pelo Claude em SVG: o Nano Banana Pro não pode ser usado aqui.'
+                : ` · pedido: ${img.configUsada.aspectRatio || '—'}${img.configUsada.imageSize ? `, ${img.configUsada.imageSize}` : ' (o tamanho 2K foi recusado pela API)'}`}
             </figcaption>
           </figure>
           {st.versoes.length > 1 && (
@@ -150,9 +179,7 @@ export function InfographicPanel({ st, liveAtivo, onRetry, onCorrigir, onRevisar
             <button className="btn" onClick={() => setZoom(true)}>
               Ampliar
             </button>
-            <a className="btn" href={url} download={nomeArquivo}>
-              Baixar (resolução original)
-            </a>
+            <BotaoBaixar cls="btn" rotulo={IS_ARTIFACT ? 'Baixar (SVG, sem perda de qualidade)' : 'Baixar (resolução original)'} />
             <button className="btn btn-blue" onClick={onPerguntarTutor}>
               Perguntar ao tutor sobre este infográfico
             </button>
@@ -160,6 +187,7 @@ export function InfographicPanel({ st, liveAtivo, onRetry, onCorrigir, onRevisar
               {st.revisao?.carregando ? 'Revisando…' : 'Revisar o infográfico'}
             </button>
           </div>
+          {erroDl && <p className="error-inline">{erroDl}</p>}
           <div className="info-fix">
             <label htmlFor="correcao">Pedir uma correção específica</label>
             <div className="ask-row">
@@ -215,12 +243,12 @@ export function InfographicPanel({ st, liveAtivo, onRetry, onCorrigir, onRevisar
             <button className="btn" onClick={() => setReal((r) => !r)}>
               {real ? 'Ajustar à tela' : 'Ver em 100% (pixels reais)'}
             </button>
-            <a className="btn btn-primary" href={url} download={nomeArquivo}>
-              Baixar (resolução original{dim ? `, ${dim.w}×${dim.h}` : ''})
-            </a>
-            <a className="btn" href={url} target="_blank" rel="noreferrer">
-              Abrir em tamanho real numa nova aba
-            </a>
+            <BotaoBaixar cls="btn btn-primary" rotulo={IS_ARTIFACT ? 'Baixar (SVG)' : `Baixar (resolução original${dim ? `, ${dim.w}×${dim.h}` : ''})`} />
+            {!IS_ARTIFACT && (
+              <a className="btn" href={url} target="_blank" rel="noreferrer">
+                Abrir em tamanho real numa nova aba
+              </a>
+            )}
           </div>
         </Modal>
       )}

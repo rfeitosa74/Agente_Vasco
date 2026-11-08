@@ -11,6 +11,7 @@ interface Props {
   temPaginas: boolean;
   onRetry: () => void;
   onShowPage: (p: number) => void;
+  onShowTempo?: (t: string) => void;
 }
 
 const STATUS_REVISAO: Record<string, { txt: string; cls: string }> = {
@@ -21,7 +22,7 @@ const STATUS_REVISAO: Record<string, { txt: string; cls: string }> = {
   nao_revisado: { txt: 'Não foi possível revisar este quadro', cls: 'warn' },
 };
 
-export function BoardView({ state, loading, erro, highlights, temPaginas, onRetry, onShowPage }: Props) {
+export function BoardView({ state, loading, erro, highlights, temPaginas, onRetry, onShowPage, onShowTempo }: Props) {
   const [verRevisao, setVerRevisao] = useState(false);
   const board = state?.board;
   const hl = new Set(highlights);
@@ -102,6 +103,13 @@ export function BoardView({ state, loading, erro, highlights, temPaginas, onRetr
                 <span className="sources">
                   Fonte no material:{' '}
                   {board.fontes.map((f, i) => {
+                    const t = onShowTempo ? /\b((?:\d+:)?\d{1,2}:\d{2})\b/.exec(f) : null;
+                    if (t)
+                      return (
+                        <button key={i} className="link-chalk" onClick={() => onShowTempo!(t[1])}>
+                          ▶ {f}
+                        </button>
+                      );
                     const m = temPaginas ? /p\.?\s*(\d+)/i.exec(f) : null;
                     return m ? (
                       <button key={i} className="link-chalk" onClick={() => onShowPage(Number(m[1]))}>

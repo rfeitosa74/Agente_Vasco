@@ -88,6 +88,14 @@ function handleGenerate(model, body) {
     const png = new Resvg(svg, { font: { loadSystemFonts: true } }).render().asPng();
     return { body: { candidates: [{ content: { parts: [{ text: 'Aqui está.' }, { inlineData: { mimeType: 'image/png', data: png.toString('base64') } }] }, finishReason: 'STOP' }], modelVersion: 'gemini-3-pro-image-preview' } };
   }
+  if (t.includes('Responda SOMENTE com um único documento SVG')) {
+    const corr = t.includes('INFOGRÁFICO ATUAL (SVG)');
+    return { body: genResponse(`<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900"><rect width="1600" height="900" fill="#fdf8ec"/><text x="800" y="120" font-size="${corr ? 80 : 56}" text-anchor="middle" fill="#2f5d46">INFOGRÁFICO SVG DE TESTE${corr ? ' (corrigido)' : ''}</text><circle cx="300" cy="480" r="120" fill="gold"/><circle cx="800" cy="480" r="30" fill="gray"/><circle cx="1300" cy="480" r="90" fill="steelblue"/></svg>`) };
+  }
+  if (t.includes('Analise o material de estudo anexado') && /O material é um (ÁUDIO|VÍDEO)/.test(t)) {
+    return { body: genResponse({ ...ANALISE_ECLIPSE, secoes: [{ id: 'abertura', titulo: 'Abertura', inicio: '00:00' }, { id: 'eclipse_solar', titulo: 'Eclipse solar', inicio: '00:04' }],
+      conceitos: ANALISE_ECLIPSE.conceitos.map((c, i) => ({ ...c, paginas: [], tempos: i === 0 ? ['00:04', '99:00'] : ['00:07'] })) }) };
+  }
   if (t.includes('Analise o material de estudo anexado')) {
     if (t.includes('Material vazio de teste')) return { body: genResponse({ analisavel: false, motivoNaoAnalisavel: 'o texto não contém conteúdo de estudo', titulo: '', resumo: '', conceitos: [] }) };
     return { body: genResponse(isEclipse ? ANALISE_ECLIPSE : ANALISE_FRACOES) };
@@ -129,7 +137,7 @@ const server = http.createServer((req, res) => {
   req.on('data', (c) => (data += c));
   req.on('end', () => {
     const send = (status, obj) => {
-      res.writeHead(status, { 'content-type': 'application/json' });
+      res.writeHead(status, { 'content-type': 'application/json', 'access-control-allow-origin': '*' });
       res.end(JSON.stringify(obj));
     };
     const url = new URL(req.url, 'http://x');
@@ -138,7 +146,24 @@ const server = http.createServer((req, res) => {
       Object.assign(opts, Object.fromEntries(url.searchParams));
       return send(200, opts);
     }
-    const body = data ? JSON.parse(data) : {};
+    // API de arquivos (envio retomável, como a real)
+    if (url.pathname.startsWith('/upload/') && req.headers['x-goog-upload-command'] === 'start') {
+      log.push({ upload: 'start', mime: req.headers['x-goog-upload-header-content-type'], tamanho: req.headers['x-goog-upload-header-content-length'] });
+      res.writeHead(200, { 'x-goog-upload-url': `http://127.0.0.1:${PORT}/upload-session/1`, 'x-goog-upload-status': 'active', 'content-type': 'application/json' });
+      return res.end('{}');
+    }
+    if (url.pathname.startsWith('/upload-session/')) {
+      const fim = String(req.headers['x-goog-upload-command'] || '').includes('finalize');
+      res.writeHead(200, { 'x-goog-upload-status': fim ? 'final' : 'active', 'content-type': 'application/json' });
+      return res.end(JSON.stringify({ file: { name: 'files/video1', uri: `http://127.0.0.1:${PORT}/v1beta/files/video1`, mimeType: 'video/mp4', state: 'PROCESSING' } }));
+    }
+    if (req.method === 'GET' && url.pathname.endsWith('/files/video1')) return send(200, { name: 'files/video1', uri: `http://127.0.0.1:${PORT}/v1beta/files/video1`, mimeType: 'video/mp4', state: 'ACTIVE' });
+    let body = {};
+    try {
+      body = data ? JSON.parse(data) : {};
+    } catch {
+      body = {};
+    }
     log.push({ method: req.method, path: url.pathname, body: summarize(body) });
     if (req.method === 'GET' && /\/models$/.test(url.pathname)) {
       return send(200, {
