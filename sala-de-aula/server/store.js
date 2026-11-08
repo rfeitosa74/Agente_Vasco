@@ -280,3 +280,19 @@ export function lerImagem(uid, sid, mid, iid) {
   const mimeType = { svg: 'image/svg+xml', jpg: 'image/jpeg', webp: 'image/webp', png: 'image/png' }[ext] || 'image/png';
   return { mimeType, data: fs.readFileSync(path.join(dir, f)).toString('base64') };
 }
+
+/**
+ * Os dados estão num lugar permanente? No Render, só um disco montado à parte
+ * (ex.: /var/data) sobrevive a reinícios; o resto do sistema de arquivos é apagado.
+ * Detecta comparando o dispositivo da pasta de dados com o da raiz do sistema.
+ */
+export function situacaoArmazenamento() {
+  const pasta = DATA_DIR;
+  if (!process.env.RENDER) return { persistente: true, pasta, verificado: false };
+  try {
+    const persistente = fs.statSync(pasta).dev !== fs.statSync('/').dev;
+    return { persistente, pasta, verificado: true };
+  } catch {
+    return { persistente: false, pasta, verificado: true };
+  }
+}

@@ -386,3 +386,6 @@ audio.midia-player { background: none; }
   .tabela { font-size: 0.9rem; }
   .material-ir { display: none; }
 }
+.aviso-dados { max-width: 1120px; margin: 18px auto 0; background: #fde9e4; border: 2px solid var(--coral); border-radius: var(--radius); padding: 14px 20px; }
+.aviso-dados strong { color: var(--coral-ink); font-size: 1.08rem; }
+.aviso-dados p, .aviso-dados ol { margin: 8px 0; }

@@ -141,7 +141,14 @@ app.get('/api/health', (_req, res) => res.json({ ok: true }));
 app.get('/api/session', (req, res) => {
   const vazio = S.contarUsuarios() === 0;
   const u = vazio ? null : usuarioDaSessao(req);
-  res.json({ logado: !!u, usuario: S.publico(u), precisaConfigurar: vazio && SO_LOCAL, configuracaoPendente: vazio && !SO_LOCAL });
+  res.json({
+    logado: !!u,
+    usuario: S.publico(u),
+    precisaConfigurar: vazio && SO_LOCAL,
+    configuracaoPendente: vazio && !SO_LOCAL,
+    // Só o administrador vê o aviso sobre onde os dados estão guardados.
+    ...(u?.admin ? { armazenamento: S.situacaoArmazenamento() } : {}),
+  });
 });
 
 // Primeiro acesso no computador local: cria o administrador.
@@ -867,6 +874,8 @@ const server = app.listen(PORT, HOST, async () => {
   }
   if (!hasKey()) console.log('ATENÇÃO: GEMINI_API_KEY não definida. Crie o arquivo .env (veja .env.example).');
   console.log(`Dados guardados em: ${S.DATA_DIR}`);
+  if (!S.situacaoArmazenamento().persistente)
+    console.log('ATENÇÃO: a pasta de dados NÃO está num disco permanente. Usuários, salas e materiais serão apagados a cada reinício. No Render, adicione um disco em /var/data (plano Starter) e defina DATA_DIR=/var/data.');
   if (S.contarUsuarios() === 0)
     console.log(SO_LOCAL ? 'Primeiro acesso: abra o endereço acima e crie a conta de administrador.' : 'ATENÇÃO: sem usuários e sem APP_PASSWORD. O site fica bloqueado até você definir APP_PASSWORD.');
 });

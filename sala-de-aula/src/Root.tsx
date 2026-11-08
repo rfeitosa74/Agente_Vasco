@@ -10,6 +10,7 @@ interface Sessao {
   usuario: Usuario | null;
   precisaConfigurar: boolean;
   configuracaoPendente: boolean;
+  armazenamento?: { persistente: boolean; pasta: string; verificado: boolean };
 }
 
 /** Login (ou primeiro acesso) e depois as salas do usuário. */
@@ -44,5 +45,5 @@ export function Root() {
   if (!sessao) return null;
   if (sessao.configuracaoPendente || sessao.precisaConfigurar || !sessao.logado || !sessao.usuario)
     return <LoginScreen configuracaoPendente={sessao.configuracaoPendente} primeiroAcesso={sessao.precisaConfigurar} onOk={carregar} />;
-  return <Portal usuario={sessao.usuario} onSair={carregar} />;
+  return <Portal usuario={sessao.usuario} onSair={carregar} armazenamento={sessao.armazenamento} />;
 }
