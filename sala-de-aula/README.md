@@ -59,7 +59,21 @@ Para o infográfico **não há substituição por outro modelo**: se o Nano Bana
 mostra o erro. As imagens são pedidas em **16:9 e 2K** (`imageConfig: { aspectRatio: '16:9', imageSize: '2K' }`). A
 legenda da imagem mostra o modelo que realmente respondeu e o tamanho real em pixels.
 
-## 4. Formatos aceitos
+## 4. Usuários e salas
+
+- Cada pessoa tem **usuário e senha** e vê **só as próprias salas**. O administrador cria e remove usuários e define
+  senhas (menu **Usuários**); cada um troca a própria senha em **Minha conta**.
+- **Salas**: uma para cada disciplina, curso ou módulo (**+ Nova sala**). Cada sala guarda vários materiais; cada
+  material guarda a análise, os quadros, a conversa, o último conceito estudado e o último infográfico pronto. Ao
+  reabrir, a aula continua de onde parou, sem refazer a análise.
+- **Primeiro administrador**: no computador local, criado na primeira tela; na internet, criado no início do servidor
+  com o usuário `admin` (ou `ADMIN_USER`) e a senha `APP_PASSWORD`. Sem usuários e sem `APP_PASSWORD`, o site na
+  internet fica bloqueado.
+- Os dados ficam em `DATA_DIR` (padrão: pasta `dados`; no Render, o disco `/var/data`). Senhas são guardadas com
+  hash scrypt; sessões em cookie assinado de 30 dias, encerradas quando a senha muda.
+- A versão em **artefato do Claude** continua de uma pessoa só (a conta do Claude de quem abre) e não guarda salas.
+
+## 5. Formatos aceitos
 
 | Formato | Site (Gemini) | Artefato do Claude |
 |---|---|---|
@@ -77,14 +91,14 @@ legenda da imagem mostra o modelo que realmente respondeu e o tamanho real em pi
 - Em áudio e vídeo, os momentos citados pelo Gemini são conferidos com a duração real; os que não existem são
   descartados. Na janela “Material original”, botões levam o player direto ao momento de cada conceito.
 
-## 5. Versão como artefato do Claude
+## 6. Versão como artefato do Claude
 
 `npm run build:artefato` gera, em `dist-artefato/`, uma versão que roda dentro do claude.ai, com a conta de quem abre,
 sem chaves de API. Nessa versão o Claude faz a análise, o quadro, as respostas e a avaliação; o tutor e o “Agora eu
 explico” são por escrito (o artefato não pode usar o microfone) e o infográfico é desenhado pelo Claude em SVG (o Nano
 Banana Pro não pode ser chamado de dentro do artefato). Teste: `tests/artifact-e2e.mjs`.
 
-## 6. Como funciona
+## 7. Como funciona
 
 - **Início**: o PDF é aberto no navegador (pdf.js, para contar e mostrar as páginas) e enviado ao servidor, que pede ao
   Gemini a análise do conteúdo real, incluindo figuras. Números de página inexistentes são descartados; anotações em
@@ -112,10 +126,10 @@ Banana Pro não pode ser chamado de dentro do artefato). Teste: `tests/artifact-
   “Perguntar ao tutor sobre este infográfico”.
 - **Trocar material** encerra a conversa por voz e apaga quadros, perguntas e infográficos, para não misturar materiais.
 
-## 7. Testes
+## 8. Testes
 
 ```bash
-npm test            # testes unitários (sem rede)
+npm test            # testes unitários (sem rede): quadro, erros, usuários e salas
 npm run typecheck
 ```
 
@@ -133,7 +147,7 @@ MIDIA=pasta node tests/formatos-e2e.mjs
 
 `GEMINI_TEST_BASE_URL` serve **apenas** para esses testes; não defina essa variável no uso normal.
 
-## 8. Verificação manual com a sua chave
+## 9. Verificação manual com a sua chave
 
 Os itens abaixo dependem da API real e de áudio audível, e precisam ser conferidos por você:
 

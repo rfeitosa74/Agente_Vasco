@@ -1,18 +1,27 @@
 # Publicação no Render (https://render.com) — "Minha sala de aula".
 # Ao criar o Blueprint, o Render pede os valores de GEMINI_API_KEY e APP_PASSWORD.
+# APP_PASSWORD é a senha do usuário "admin", criado no primeiro início.
+# As salas, materiais e senhas ficam no disco permanente (/var/data), que exige
+# o plano Starter: no plano grátis os arquivos são apagados a cada reinício.
 services:
   - type: web
     name: minha-sala-de-aula
     runtime: node
-    plan: free
+    plan: starter
     rootDir: sala-de-aula
     buildCommand: npm ci --include=dev && npm run build
     startCommand: node server/index.js --producao
     healthCheckPath: /api/health
+    disk:
+      name: dados
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: GEMINI_API_KEY
         sync: false
       - key: APP_PASSWORD
         sync: false
+      - key: DATA_DIR
+        value: /var/data
       - key: NODE_VERSION
         value: "22"

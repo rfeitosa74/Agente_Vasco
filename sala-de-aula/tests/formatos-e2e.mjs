@@ -2,6 +2,7 @@
 // Uso: APP=http://127.0.0.1:5180 FAKE=http://127.0.0.1:8787 MIDIA=pasta-com-arquivos node tests/formatos-e2e.mjs
 import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
+import { abrirSala, entrar } from './helpers.mjs';
 const { chromium } = createRequire(import.meta.url)('playwright');
 const APP = process.env.APP || 'http://127.0.0.1:5180';
 const FAKE = process.env.FAKE || 'http://127.0.0.1:8787';
@@ -15,8 +16,11 @@ const p = await (await b.newContext({ viewport: { width: 1440, height: 900 } }))
 const errs = [];
 p.on('pageerror', (e) => errs.push(String(e)));
 
+await entrar(p, APP);
 async function abrir(arquivo) {
   await p.goto(APP);
+  await p.locator('.portal-bar').waitFor();
+  await abrirSala(p, 'Formatos');
   await p.locator('input[type=file]').setInputFiles(`${M}/${arquivo}`);
   await p.getByRole('button', { name: 'Começar aula com este documento' }).click();
   await p.locator('.board-title').waitFor({ timeout: 30000 });
@@ -67,9 +71,12 @@ assert.ok(JSON.stringify(req.body).includes('"mimeType":"image/png"'));
 ok(`Foto (.png): enviada ao Gemini e analisada (${meta})`);
 
 await p.goto(APP);
+await abrirSala(p, 'Formatos');
 await p.locator('input[type=file]').setInputFiles({ name: 'antigo.doc', mimeType: 'application/msword', buffer: Buffer.from('x'.repeat(100)) });
 await p.getByRole('button', { name: 'Começar aula com este documento' }).click();
 await p.getByText('Arquivos .doc (Word antigo) não são aceitos.').waitFor();
+await p.getByRole('button', { name: /Voltar à sala Formatos/ }).click();
+await abrirSala(p, 'Formatos');
 await p.locator('input[type=file]').setInputFiles({ name: 'planilha.zip', mimeType: 'application/zip', buffer: Buffer.from('PK') });
 await p.getByRole('button', { name: 'Começar aula com este documento' }).click();
 await p.getByText('Este tipo de arquivo não é aceito.').waitFor();

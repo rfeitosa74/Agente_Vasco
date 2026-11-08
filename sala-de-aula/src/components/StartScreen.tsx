@@ -19,11 +19,13 @@ interface Props {
   erro: ApiErro | null;
   onStart: (m: Material) => void;
   onRetry: () => void;
+  /** Dentro de uma sala: sem o cabeçalho e sem o diagnóstico. */
+  embutido?: boolean;
 }
 
 const PAPEL: Record<string, string> = { texto: 'Análise e explicações', live: 'Tutor por voz (Live)', imagem: 'Infográficos (Nano Banana Pro)' };
 
-export function StartScreen({ carregando, erro, onStart, onRetry }: Props) {
+export function StartScreen({ carregando, erro, onStart, onRetry, embutido = false }: Props) {
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [texto, setTexto] = useState('');
   const [nome, setNome] = useState('');
@@ -63,11 +65,13 @@ export function StartScreen({ carregando, erro, onStart, onRetry }: Props) {
   };
 
   return (
-    <main className="start">
+    <main className={embutido ? 'start embutido' : 'start'}>
+      {!embutido && (
       <header className="start-head">
         <h1>Minha sala de aula</h1>
         <p>Envie a matéria (PDF, Word, foto{IS_ARTIFACT ? '' : ', áudio ou vídeo'}) ou cole suas anotações. O quadro, o caderno e o tutor vão trabalhar com esse material.</p>
       </header>
+      )}
 
       {IS_ARTIFACT && (
         <div className="setup-note">
@@ -159,7 +163,7 @@ export function StartScreen({ carregando, erro, onStart, onRetry }: Props) {
         </section>
       )}
 
-      {!IS_ARTIFACT && (
+      {!IS_ARTIFACT && !embutido && (
       <section className="diagnostics">
         <button className="btn btn-link" onClick={verificar} disabled={verificando}>
           {verificando ? 'Verificando…' : 'Verificar configuração e modelos'}

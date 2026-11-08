@@ -6,6 +6,7 @@ import { createRequire } from 'node:module';
 const { chromium } = createRequire(import.meta.url)('playwright'); // usa o Playwright instalado no sistema
 import { mkdirSync, statSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import { abrirSala, entrar } from './helpers.mjs';
 
 const APP = process.env.APP || 'http://127.0.0.1:5180';
 const FAKE = process.env.FAKE || 'http://127.0.0.1:8787';
@@ -22,7 +23,17 @@ const page = await ctx.newPage();
 const errosConsole = [];
 page.on('pageerror', (e) => errosConsole.push(String(e)));
 
-await page.goto(APP);
+await entrar(page, APP);
+// O administrador cria a conta do Luan
+await page.getByRole('button', { name: 'Usuários' }).click();
+await page.getByPlaceholder('ex.: Luan', { exact: true }).fill('Luan');
+await page.getByPlaceholder('ex.: luan', { exact: true }).fill('luan');
+await page.locator('.novo-usuario input[type=password]').fill('luan2026');
+await page.getByRole('button', { name: 'Criar usuário' }).click();
+await page.getByText('Usuário “luan” criado.').waitFor();
+await shot(page, '00-usuarios');
+ok('Administrador criou o usuário do Luan');
+await abrirSala(page, 'Ciências');
 await page.getByText('Materiais de exemplo').waitFor();
 await shot(page, '01-inicio');
 
@@ -149,8 +160,12 @@ ok('Falha de faturamento exibida como erro específico, sem imagem substituta');
 await fetch(`${FAKE}/__opts?imageError=`);
 
 // 1) Material B (frações): conceitos e representações diferentes; contexto reiniciado
-await page.getByRole('button', { name: 'Trocar material' }).click();
-assert.equal((await liveLog()) && (await page.locator('.status-pill.st-ouvindo').count()), 0, 'tutor encerrado ao trocar');
+const analisesAntes = (await fakeLog()).filter((e) => e.path?.includes('generateContent') && JSON.stringify(e.body).includes('Analise o material')).length;
+await page.getByRole('button', { name: /Voltar à sala Ciências/ }).first().click();
+await page.locator('.material-item').first().waitFor();
+assert.equal(await page.locator('.status-pill.st-ouvindo').count(), 0, 'tutor encerrado ao sair do material');
+await shot(page, '07b-sala');
+await page.getByRole('button', { name: '+ Adicionar material' }).click();
 await page.getByRole('button', { name: /Frações/ }).click();
 await page.locator('.board-svg svg').waitFor({ timeout: 20000 });
 const conceitosB = await page.locator('.concept-name').allInnerTexts();
@@ -162,6 +177,33 @@ await page.getByRole('button', { name: /Tipos de fração/ }).click();
 await page.locator('.board-compare').waitFor({ timeout: 20000 });
 await shot(page, '09-fracoes-comparacao');
 ok('Material B usa outras representações (esquema de relações e comparação)');
+
+// Progresso guardado: reabrir o material A sem nova análise
+await page.waitForTimeout(1600); // salvamento automático
+await page.getByRole('button', { name: /Voltar à sala Ciências/ }).first().click();
+await page.locator('.material-item', { hasText: 'Eclipses' }).locator('.material-abrir').click();
+await page.locator('.board-svg svg').waitFor({ timeout: 20000 });
+assert.match(await page.locator('.board-title').innerText(), /Eclipse lunar/, 'voltou ao último conceito estudado');
+assert.ok((await page.locator('.msg-tutor').count()) >= 2, 'conversa restaurada');
+await page.locator('.info-figure img').waitFor();
+const analisesDepois = (await fakeLog()).filter((e) => e.path?.includes('generateContent') && JSON.stringify(e.body).includes('Analise o material')).length;
+assert.equal(analisesDepois, analisesAntes + 1, 'só a análise do material B; o A foi reaberto do disco');
+await shot(page, '10-material-reaberto');
+ok('Material reaberto do disco: último conceito, conversa e infográfico restaurados, sem nova análise');
+
+// Separação por usuário: o Luan não vê a sala do administrador
+await page.getByRole('button', { name: /Voltar à sala Ciências/ }).first().click();
+await page.getByRole('button', { name: 'Sair' }).click();
+await entrar(page, APP, { usuario: 'luan', senha: 'luan2026' });
+await page.getByText('Você ainda não tem salas.').waitFor();
+assert.equal(await page.locator('.sala-card').count(), 0);
+await abrirSala(page, 'Matemática');
+await page.getByRole('button', { name: 'Minhas salas', exact: true }).click();
+await page.locator('.sala-card').first().waitFor();
+assert.deepEqual(await page.locator('.sala-nome').allInnerTexts(), ['Matemática']);
+assert.equal(await page.getByRole('button', { name: 'Usuários' }).count(), 0, 'aluno não administra usuários');
+await shot(page, '11-salas-do-luan');
+ok('Luan entra com a própria senha e vê só as próprias salas');
 
 assert.deepEqual(errosConsole, [], `erros na página: ${errosConsole.join('\n')}`);
 ok('Nenhum erro de JavaScript na página');

@@ -10,6 +10,7 @@ interface Props {
   onSelect: (id: string) => void;
   onVerOriginal: () => void;
   onTrocar: () => void;
+  rotuloTrocar?: string;
   onExplicar: () => void;
   onInfografico: () => void;
   infograficoOcupado: boolean;
@@ -83,7 +84,7 @@ export function Notebook(p: Props) {
             {p.material.midia === 'audio' ? 'Ouvir o áudio original' : p.material.midia === 'video' ? 'Ver o vídeo original' : 'Ver anotações originais'}
           </button>
           <button className="btn" onClick={p.onTrocar}>
-            Trocar material
+            {p.rotuloTrocar || 'Trocar material'}
           </button>
         </div>
       </div>

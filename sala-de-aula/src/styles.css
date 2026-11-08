@@ -333,3 +333,56 @@ code { background: #ece3cc; padding: 1px 6px; border-radius: 6px; font-size: 0.9
 .midia-player { width: 100%; max-height: 64vh; background: #000; border-radius: 10px; }
 audio.midia-player { background: none; }
 .midia-img { max-width: 100%; max-height: 72vh; object-fit: contain; border-radius: 10px; background: #fff; align-self: center; }
+
+/* ---------- portal: salas, materiais, usuários ---------- */
+.portal { min-height: 100vh; }
+.portal-bar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 12px 28px; border-bottom: 2px solid #e6dcc3; background: #fffaf0cc; }
+.portal-marca { background: none; border: none; font-size: 1.35rem; font-weight: 800; color: var(--board); padding: 0; }
+.portal-nav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.portal-nav .btn-link.ativo { color: var(--board); text-decoration-thickness: 3px; }
+.portal-user { font-weight: 700; color: var(--ink-soft); padding: 0 8px; }
+.portal-main { max-width: 1120px; margin: 0 auto; padding: 26px 24px 80px; display: flex; flex-direction: column; gap: 20px; }
+.portal-main.estreito { max-width: 620px; }
+.portal-title { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; flex-wrap: wrap; }
+.portal-title h1 { margin: 2px 0 4px; font-size: 2rem; color: var(--board); }
+.portal-title p { margin: 0; max-width: 62ch; }
+.voltar { align-self: flex-start; padding-left: 0; }
+.vazio { background: #fffdf6; border: 2px dashed #ddd0b0; border-radius: var(--radius); padding: 28px; text-align: center; }
+.salas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.sala-card { background: #fffdf6; border: 2px solid #e6dcc3; border-radius: var(--radius); display: flex; flex-direction: column; box-shadow: 0 2px 0 #e6dcc3; }
+.sala-card:hover { border-color: var(--board); }
+.sala-abrir { background: none; border: none; text-align: left; padding: 16px 18px 8px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.sala-tipo { font-size: 0.75rem; text-transform: uppercase; letter-spacing: .06em; font-weight: 800; color: var(--blue-ink); }
+.sala-nome { font-size: 1.25rem; color: var(--ink); }
+.sala-desc { color: var(--ink-soft); font-size: 0.92rem; }
+.sala-info { color: var(--ink-soft); font-size: 0.85rem; margin-top: 6px; }
+.sala-acoes { display: flex; justify-content: flex-end; gap: 4px; padding: 0 10px 8px; }
+.perigo { color: var(--coral-ink) !important; }
+.secao-titulo { font-size: 1.15rem; margin: 6px 0 10px; }
+.materiais-lista { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.material-item { display: flex; align-items: center; gap: 8px; background: #fffdf6; border: 2px solid #e6dcc3; border-radius: 12px; padding-right: 8px; }
+.material-item:hover { border-color: var(--board); }
+.material-abrir { flex: 1; display: flex; align-items: center; gap: 14px; background: none; border: none; padding: 12px 14px; text-align: left; min-width: 0; }
+.material-tipo { flex: none; width: 64px; text-align: center; font-size: 0.78rem; font-weight: 800; color: #fff; background: var(--board); border-radius: 8px; padding: 6px 4px; }
+.material-txt { display: flex; flex-direction: column; min-width: 0; }
+.material-txt strong { font-size: 1.05rem; }
+.material-ir { margin-left: auto; color: var(--board); font-weight: 700; white-space: nowrap; }
+.adicionar { border-top: 2px dashed #ddd0b0; padding-top: 14px; }
+.adicionar-head { display: flex; justify-content: space-between; align-items: center; }
+.start.embutido { padding: 0; max-width: none; }
+.form-sala { display: flex; flex-direction: column; gap: 8px; }
+.form-sala label, .form-grid label { font-weight: 700; }
+.form-sala select { padding: 10px 12px; border-radius: 10px; border: 2px solid #e2d7bc; background: #fff; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; align-items: end; }
+.form-grid label { display: flex; flex-direction: column; gap: 6px; }
+.form-grid label.check { flex-direction: row; align-items: center; font-weight: 600; }
+.novo-usuario h2 { margin: 0 0 10px; font-size: 1.15rem; }
+.tabela { width: 100%; border-collapse: collapse; background: #fffdf6; border: 2px solid #e6dcc3; border-radius: var(--radius); overflow: hidden; }
+.tabela th, .tabela td { text-align: left; padding: 10px 14px; border-bottom: 1px solid #eee4cc; }
+.tabela th { background: #f5eedb; font-size: 0.85rem; text-transform: uppercase; letter-spacing: .04em; }
+.tabela-acoes { text-align: right; white-space: nowrap; }
+.topbar-sala { font-weight: 700; }
+@media (max-width: 700px) {
+  .tabela { font-size: 0.9rem; }
+  .material-ir { display: none; }
+}

@@ -27,7 +27,10 @@ Faça uma vez só. Leva uns 20 minutos.
 2. Dê dois cliques em **INICIAR-SALA-DE-AULA** (o ícone de engrenagem).
    - Se aparecer "O Windows protegeu o computador", clique em **Mais informações** → **Executar assim mesmo**.
 3. Na primeira vez, a janela preta pede a chave: clique com o **botão direito** dentro dela para colar e aperte **Enter**.
-4. Espere a instalação (alguns minutos, só na primeira vez). O navegador abre sozinho com a sala de aula.
+4. Espere a instalação (alguns minutos, só na primeira vez). O navegador abre sozinho.
+5. No primeiro acesso, crie a sua conta de administrador (seu nome, um usuário e uma senha). Depois, em **Usuários**,
+   crie a conta do Luan. Cada um cria as próprias salas (**+ Nova sala**), uma por disciplina, curso ou módulo.
+   Tudo fica guardado na pasta `dados`, dentro de sala-de-aula.
 
 **Deixe a janela preta aberta** enquanto o Luan estuda. Para desligar, feche essa janela.
 

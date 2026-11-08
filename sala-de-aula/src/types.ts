@@ -118,4 +118,40 @@ export interface ImagemGerada {
   modeloPedido: string;
   configUsada: { aspectRatio?: string; imageSize?: string };
   textoDoModelo?: string;
+  imagemId?: string; // guardada na sala
+}
+
+export interface Usuario {
+  id: string;
+  usuario: string;
+  nome: string;
+  admin: boolean;
+  criadoEm?: string;
+  totalSalas?: number;
+}
+
+export type TipoSala = 'disciplina' | 'curso' | 'modulo' | 'outro';
+
+export interface ResumoMaterial {
+  id: string;
+  nome: string;
+  tipo: 'pdf' | 'texto' | 'midia';
+  midia?: string;
+  origem?: string;
+  exemplo?: boolean;
+  titulo: string;
+  totalConceitos: number;
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
+export interface Sala {
+  id: string;
+  nome: string;
+  tipo: TipoSala;
+  descricao: string;
+  criadaEm: string;
+  atualizadaEm: string;
+  totalMateriais?: number;
+  materiais?: ResumoMaterial[];
 }

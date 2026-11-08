@@ -24,6 +24,7 @@ import {
   toAppError,
 } from './gemini.js';
 import * as P from './prompts.js';
+import * as S from './store.js';
 import { describeBoard, renderBoardSvg, SVG_KINDS, validateBoard } from '../shared/board.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -76,34 +77,41 @@ function tipoDeMidia(mime, nomeArquivo) {
 }
 
 // ---------------------------------------------------------------------------
-// Login com senha (obrigatório quando o site fica na internet)
+// Usuários e sessões
 // ---------------------------------------------------------------------------
 const COOKIE = 'sala_sessao';
 const DURACAO_SESSAO = 30 * 24 * 60 * 60 * 1000; // 30 dias
-// Chave de assinatura derivada da senha: trocar a senha encerra todas as sessões.
-const SEGREDO_SESSAO = crypto.createHmac('sha256', SENHA || 'sem-senha').update('minha-sala-de-aula/sessao').digest();
+const SEGREDO_SESSAO = S.segredoSessao();
+const ADMIN_USUARIO = process.env.ADMIN_USER || 'admin';
 
-function assinar(exp) {
-  return crypto.createHmac('sha256', SEGREDO_SESSAO).update(String(exp)).digest('base64url');
+// Na internet, o primeiro administrador vem da senha APP_PASSWORD (definida no Render).
+if (S.contarUsuarios() === 0 && SENHA) {
+  S.criarUsuario({ usuario: ADMIN_USUARIO, nome: 'Administrador', senha: SENHA, admin: true });
+  console.log(`Administrador criado: usuário "${ADMIN_USUARIO}" com a senha de APP_PASSWORD.`);
 }
-function sessaoValida(req) {
-  const c = Object.fromEntries(
-    String(req.headers.cookie || '')
-      .split(';')
-      .map((p) => p.trim().split('='))
-      .filter((p) => p.length === 2)
-  )[COOKIE];
-  if (!c) return false;
-  const [exp, sig] = c.split('.');
-  if (!exp || !sig || Number(exp) < Date.now()) return false;
-  const esperado = Buffer.from(assinar(exp));
+
+function assinar(uid, exp, versao) {
+  return crypto.createHmac('sha256', SEGREDO_SESSAO).update(`${uid}.${exp}.${versao}`).digest('base64url');
+}
+function lerCookie(req) {
+  for (const p of String(req.headers.cookie || '').split(';')) {
+    const i = p.indexOf('=');
+    if (i > 0 && p.slice(0, i).trim() === COOKIE) return p.slice(i + 1).trim();
+  }
+  return '';
+}
+function usuarioDaSessao(req) {
+  const [uid, exp, sig] = lerCookie(req).split('.');
+  if (!uid || !exp || !sig || Number(exp) < Date.now()) return null;
+  const u = S.buscarUsuario(uid);
+  if (!u) return null;
+  const esperado = Buffer.from(assinar(uid, exp, u.versaoSenha || 1));
   const recebido = Buffer.from(sig);
-  return esperado.length === recebido.length && crypto.timingSafeEqual(esperado, recebido);
+  return esperado.length === recebido.length && crypto.timingSafeEqual(esperado, recebido) ? u : null;
 }
-function iguais(a, b) {
-  const ha = crypto.createHash('sha256').update(String(a)).digest();
-  const hb = crypto.createHash('sha256').update(String(b)).digest();
-  return crypto.timingSafeEqual(ha, hb);
+function abrirSessao(req, res, u) {
+  const exp = Date.now() + DURACAO_SESSAO;
+  res.cookie(COOKIE, `${u.id}.${exp}.${assinar(u.id, exp, u.versaoSenha || 1)}`, { httpOnly: true, secure: req.secure, sameSite: 'strict', maxAge: DURACAO_SESSAO, path: '/' });
 }
 
 // Proteção contra tentativas repetidas: 8 erros em 15 minutos bloqueiam o endereço.
@@ -117,29 +125,40 @@ function registrarErro(ip) {
   if (!t || Date.now() - t.desde > 15 * 60 * 1000) tentativas.set(ip, { n: 1, desde: Date.now() });
   else t.n++;
 }
-
-const exigeLogin = !!SENHA;
-const semProtecao = !SENHA && !SO_LOCAL; // na internet sem senha: não libera nada
+const erroJson = (res, status, tipo, mensagem, comoResolver = '') => res.status(status).json({ erro: { tipo, mensagem, comoResolver } });
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 app.get('/api/session', (req, res) => {
-  res.json({ exigeLogin, logado: !exigeLogin || sessaoValida(req), configuracaoPendente: semProtecao });
+  const vazio = S.contarUsuarios() === 0;
+  const u = vazio ? null : usuarioDaSessao(req);
+  res.json({ logado: !!u, usuario: S.publico(u), precisaConfigurar: vazio && SO_LOCAL, configuracaoPendente: vazio && !SO_LOCAL });
+});
+
+// Primeiro acesso no computador local: cria o administrador.
+app.post('/api/setup', (req, res) => {
+  if (!SO_LOCAL) return erroJson(res, 403, 'acesso', 'Na internet, o administrador é criado pela senha APP_PASSWORD do servidor.');
+  if (S.contarUsuarios() > 0) return erroJson(res, 403, 'acesso', 'A configuração inicial já foi feita.');
+  try {
+    const u = S.criarUsuario({ usuario: req.body?.usuario, nome: req.body?.nome, senha: req.body?.senha, admin: true });
+    abrirSessao(req, res, S.buscarUsuario(u.id));
+    res.json({ ok: true, usuario: u });
+  } catch (e) {
+    erroJson(res, e.status || 400, 'formato', e.message);
+  }
 });
 
 app.post('/api/login', (req, res) => {
   const ip = req.ip || 'desconhecido';
-  if (!exigeLogin) return res.json({ ok: true });
-  if (bloqueado(ip))
-    return res.status(429).json({ erro: { tipo: 'acesso', mensagem: 'Muitas tentativas erradas.', comoResolver: 'Espere 15 minutos e tente de novo.' } });
-  if (!iguais(req.body?.senha || '', SENHA)) {
+  if (bloqueado(ip)) return erroJson(res, 429, 'acesso', 'Muitas tentativas erradas.', 'Espere 15 minutos e tente de novo.');
+  const u = S.verificarLogin(req.body?.usuario, req.body?.senha || '');
+  if (!u) {
     registrarErro(ip);
-    return res.status(401).json({ erro: { tipo: 'acesso', mensagem: 'Senha incorreta.' } });
+    return erroJson(res, 401, 'acesso', 'Usuário ou senha incorretos.');
   }
   tentativas.delete(ip);
-  const exp = Date.now() + DURACAO_SESSAO;
-  res.cookie(COOKIE, `${exp}.${assinar(exp)}`, { httpOnly: true, secure: req.secure, sameSite: 'strict', maxAge: DURACAO_SESSAO, path: '/' });
-  res.json({ ok: true });
+  abrirSessao(req, res, u);
+  res.json({ ok: true, usuario: S.publico(u) });
 });
 
 app.post('/api/logout', (_req, res) => {
@@ -148,12 +167,13 @@ app.post('/api/logout', (_req, res) => {
 });
 
 app.use('/api', (req, res, next) => {
-  if (semProtecao)
-    return res.status(503).json({
-      erro: { tipo: 'configuracao', mensagem: 'O site está na internet sem senha, por isso foi bloqueado.', comoResolver: 'Defina APP_PASSWORD nas configurações do servidor (no Render: Environment) e reinicie.' },
-    });
-  if (exigeLogin && !sessaoValida(req))
-    return res.status(401).json({ erro: { tipo: 'login', mensagem: 'Entre com a senha para continuar.' } });
+  if (S.contarUsuarios() === 0)
+    return SO_LOCAL
+      ? erroJson(res, 401, 'login', 'Crie a conta de administrador para começar.')
+      : erroJson(res, 503, 'configuracao', 'O site está na internet sem senha de administrador, por isso foi bloqueado.', 'Defina APP_PASSWORD nas configurações do servidor (no Render: Environment) e reinicie.');
+  const u = usuarioDaSessao(req);
+  if (!u) return erroJson(res, 401, 'login', 'Entre com seu usuário e senha para continuar.');
+  req.usuario = u;
   next();
 });
 
@@ -161,26 +181,110 @@ const wrap = (fn) => async (req, res) => {
   try {
     await fn(req, res);
   } catch (e) {
+    if (e?.paraUsuario) return erroJson(res, e.status || 400, e.status === 404 ? 'nao_encontrado' : e.status === 403 ? 'acesso' : 'formato', e.message);
     const ae = toAppError(e);
     if (!(e instanceof AppError)) console.error('[erro]', e);
     else console.warn(`[${ae.tipo}] ${ae.message}${ae.detalhe ? ` — ${ae.detalhe.slice(0, 200)}` : ''}`);
     res.status(ae.status || 500).json({ erro: publicError(ae) });
   }
 };
-
-// ---------------------------------------------------------------------------
-// Documentos (em memória; o navegador reenvia se o servidor reiniciar)
-// ---------------------------------------------------------------------------
-const docs = new Map();
-const MAX_DOCS = 12;
-
-function getDoc(id) {
-  const d = docs.get(String(id || ''));
-  if (!d) throw new AppError('documento_expirado', 'O servidor não encontrou este material (talvez tenha sido reiniciado).', 'O aplicativo vai reenviar o material automaticamente.', '', 410);
-  return d;
+function exigirAdmin(req) {
+  if (!req.usuario.admin) throw Object.assign(new Error('Só o administrador pode fazer isso.'), { status: 403, paraUsuario: true });
 }
 
+// --- minha conta
+app.put(
+  '/api/conta/senha',
+  wrap(async (req, res) => {
+    if (!S.verificarLogin(req.usuario.usuario, req.body?.atual || ''))
+      throw Object.assign(new Error('A senha atual não confere.'), { status: 400, paraUsuario: true });
+    S.alterarUsuario(req.usuario.id, { senha: req.body?.nova });
+    abrirSessao(req, res, S.buscarUsuario(req.usuario.id)); // as outras sessões são encerradas
+    res.json({ ok: true });
+  })
+);
+
+// --- usuários (somente administrador)
+app.get('/api/usuarios', wrap(async (req, res) => (exigirAdmin(req), res.json(S.listarUsuarios().map((u) => ({ ...u, totalSalas: S.listarSalas(u.id).length }))))));
+app.post('/api/usuarios', wrap(async (req, res) => (exigirAdmin(req), res.json(S.criarUsuario(req.body || {})))));
+app.patch(
+  '/api/usuarios/:id',
+  wrap(async (req, res) => {
+    exigirAdmin(req);
+    const { nome, senha, admin } = req.body || {};
+    if (req.params.id === req.usuario.id && admin === false) throw Object.assign(new Error('Você não pode tirar o seu próprio acesso de administrador.'), { status: 400, paraUsuario: true });
+    res.json(S.alterarUsuario(req.params.id, { nome, senha: senha || undefined, admin }));
+  })
+);
+app.delete(
+  '/api/usuarios/:id',
+  wrap(async (req, res) => {
+    exigirAdmin(req);
+    if (req.params.id === req.usuario.id) throw Object.assign(new Error('Você não pode remover a sua própria conta.'), { status: 400, paraUsuario: true });
+    S.removerUsuario(req.params.id);
+    res.json({ ok: true });
+  })
+);
+
+// --- salas do usuário
+app.get('/api/salas', wrap(async (req, res) => res.json(S.listarSalas(req.usuario.id))));
+app.post('/api/salas', wrap(async (req, res) => res.json(S.criarSala(req.usuario.id, req.body || {}))));
+app.get('/api/salas/:sid', wrap(async (req, res) => res.json(S.lerSala(req.usuario.id, req.params.sid))));
+app.patch('/api/salas/:sid', wrap(async (req, res) => res.json(S.alterarSala(req.usuario.id, req.params.sid, req.body || {}))));
+app.delete('/api/salas/:sid', wrap(async (req, res) => (S.removerSala(req.usuario.id, req.params.sid), res.json({ ok: true }))));
+
+// ---------------------------------------------------------------------------
+// Materiais (guardados no disco, dentro de cada sala)
+// ---------------------------------------------------------------------------
 const DESCRICAO_MIDIA = { imagem: 'uma imagem (por exemplo, foto do caderno ou do livro)', audio: 'um áudio (por exemplo, uma aula gravada)', video: 'um vídeo (por exemplo, uma videoaula)' };
+const VALIDADE_ARQUIVO_GEMINI = 40 * 60 * 60 * 1000; // a API guarda por 48 h; renovamos antes
+const usaApiDeArquivos = (meta) => meta.tipo === 'midia' && (meta.midia === 'video' || (meta.tamanho || 0) > 15 * 1024 * 1024);
+
+const docId = (sid, mid) => `${sid}:${mid}`;
+function partesDoc(id) {
+  const [sid, mid] = String(id || '').split(':');
+  if (!sid || !mid) throw new AppError('documento_expirado', 'Material não informado.', 'Volte à sala e abra o material de novo.', '', 410);
+  return { sid, mid };
+}
+
+// Guarda na memória os arquivos usados por último, para não ler o disco a cada pedido.
+const cacheBase64 = new Map();
+function base64DoArquivo(uid, sid, mid) {
+  const chave = `${uid}:${sid}:${mid}`;
+  if (cacheBase64.has(chave)) {
+    const v = cacheBase64.get(chave);
+    cacheBase64.delete(chave);
+    cacheBase64.set(chave, v);
+    return v;
+  }
+  const v = fs.readFileSync(S.arqOriginal(uid, sid, mid)).toString('base64');
+  cacheBase64.set(chave, v);
+  while (cacheBase64.size > 6) cacheBase64.delete(cacheBase64.keys().next().value);
+  return v;
+}
+
+async function getDoc(req, id) {
+  const { sid, mid } = partesDoc(id);
+  const uid = req.usuario.id;
+  let m;
+  try {
+    m = S.lerMaterial(uid, sid, mid).meta;
+  } catch {
+    throw new AppError('documento_expirado', 'Este material não foi encontrado na sua sala.', 'Volte à sala e abra o material de novo.', '', 410);
+  }
+  const doc = { tipo: m.tipo, nome: m.nome, numPaginas: m.numPaginas || 0, midia: m.midia, mime: m.mime, duracao: m.duracao || 0, texto: m.texto, uid, sid, mid };
+  if (m.tipo === 'pdf') doc.base64 = base64DoArquivo(uid, sid, mid);
+  if (m.tipo === 'midia') {
+    if (usaApiDeArquivos(m)) {
+      if (!m.fileUri || Date.now() - (m.fileUriEm || 0) > VALIDADE_ARQUIVO_GEMINI) {
+        const f = await enviarArquivo(fs.readFileSync(S.arqOriginal(uid, sid, mid)), m.mime, m.nome);
+        S.alterarMeta(uid, sid, mid, { fileUri: f.uri, fileUriEm: Date.now() });
+        doc.fileUri = f.uri;
+      } else doc.fileUri = m.fileUri;
+    } else doc.base64 = base64DoArquivo(uid, sid, mid);
+  }
+  return doc;
+}
 
 function docParts(doc) {
   if (doc.tipo === 'pdf') return [{ inlineData: { mimeType: 'application/pdf', data: doc.base64 } }];
@@ -197,19 +301,25 @@ function docParts(doc) {
 }
 
 app.post(
-  '/api/documents',
+  '/api/salas/:sid/materiais',
   upload.single('arquivo'),
   wrap(async (req, res) => {
-    let doc;
+    const uid = req.usuario.id;
+    const sid = req.params.sid;
+    S.lerSala(uid, sid);
+    let meta;
+    let conteudo;
     const midia = req.file ? tipoDeMidia(req.file.mimetype, req.file.originalname) : null;
+    const exemplo = req.body.exemplo === '1';
+    const origem = String(req.body.origem || '').slice(0, 40);
     if (req.file && midia) {
-      const nome = req.body.nome || req.file.originalname;
-      doc = { tipo: 'midia', midia: midia.tipo, mime: midia.mime, nome, duracao: Number(req.body.duracao) || 0 };
-      // Arquivos pequenos vão junto com cada pedido; os grandes (e os vídeos) pela API de arquivos.
-      if (req.file.size > 15 * 1024 * 1024 || midia.tipo === 'video') {
-        const f = await enviarArquivo(req.file.buffer, midia.mime, nome);
-        doc.fileUri = f.uri;
-      } else doc.base64 = req.file.buffer.toString('base64');
+      meta = { tipo: 'midia', midia: midia.tipo, mime: midia.mime, nome: req.body.nome || req.file.originalname, duracao: Number(req.body.duracao) || 0, tamanho: req.file.size };
+      conteudo = req.file.buffer;
+      // Vídeos e arquivos grandes vão já para a API de arquivos (os erros aparecem agora).
+      if (usaApiDeArquivos(meta)) {
+        const f = await enviarArquivo(req.file.buffer, midia.mime, meta.nome);
+        Object.assign(meta, { fileUri: f.uri, fileUriEm: Date.now() });
+      }
     } else if (req.file) {
       const isPdf = req.file.mimetype === 'application/pdf' || req.file.buffer.subarray(0, 5).toString() === '%PDF-';
       if (!isPdf)
@@ -222,22 +332,59 @@ app.post(
         );
       if (req.file.size > 19 * 1024 * 1024)
         throw new AppError('tamanho', 'O PDF é grande demais (limite de 19 MB).', 'Divida o PDF em partes menores ou envie só as páginas da matéria.', '', 413);
-      doc = {
-        tipo: 'pdf',
-        nome: req.body.nome || req.file.originalname,
-        base64: req.file.buffer.toString('base64'),
-        numPaginas: Number(req.body.numPaginas) || 0,
-      };
+      meta = { tipo: 'pdf', mime: 'application/pdf', nome: req.body.nome || req.file.originalname, numPaginas: Number(req.body.numPaginas) || 0, tamanho: req.file.size };
+      conteudo = req.file.buffer;
     } else {
       const texto = String(req.body.texto || '').trim();
       if (texto.length < 40) throw new AppError('formato', 'O texto colado é curto demais para preparar uma aula.', 'Cole as anotações completas da matéria.', '', 400);
-      doc = { tipo: 'texto', nome: String(req.body.nome || ''), texto: texto.slice(0, 200000) };
+      meta = { tipo: 'texto', nome: String(req.body.nome || 'Minhas anotações').slice(0, 120) };
+      conteudo = texto.slice(0, 200000);
     }
-    const id = crypto.randomUUID();
-    docs.set(id, doc);
-    while (docs.size > MAX_DOCS) docs.delete(docs.keys().next().value);
-    res.json({ docId: id });
+    Object.assign(meta, { exemplo, origem });
+    const m = S.criarMaterial(uid, sid, meta, conteudo);
+    res.json({ materialId: m.id, docId: docId(sid, m.id) });
   })
+);
+
+app.get(
+  '/api/salas/:sid/materiais/:mid',
+  wrap(async (req, res) => {
+    const m = S.lerMaterial(req.usuario.id, req.params.sid, req.params.mid);
+    const { fileUri, fileUriEm, ...meta } = m.meta;
+    res.json({ meta, analise: m.analise, estado: m.estado, docId: docId(req.params.sid, req.params.mid) });
+  })
+);
+
+app.get(
+  '/api/salas/:sid/materiais/:mid/arquivo',
+  wrap(async (req, res) => {
+    const m = S.lerMaterial(req.usuario.id, req.params.sid, req.params.mid);
+    if (m.meta.tipo === 'texto') throw Object.assign(new Error('Este material não tem arquivo.'), { status: 404, paraUsuario: true });
+    res.type(m.meta.mime || 'application/octet-stream');
+    res.sendFile(S.arqOriginal(req.usuario.id, req.params.sid, req.params.mid));
+  })
+);
+
+app.put(
+  '/api/salas/:sid/materiais/:mid/estado',
+  wrap(async (req, res) => {
+    S.salvarEstado(req.usuario.id, req.params.sid, req.params.mid, req.body?.estado || null);
+    res.json({ ok: true });
+  })
+);
+
+app.delete(
+  '/api/salas/:sid/materiais/:mid',
+  wrap(async (req, res) => {
+    S.removerMaterial(req.usuario.id, req.params.sid, req.params.mid);
+    for (const k of [...cacheBase64.keys()]) if (k.endsWith(`:${req.params.mid}`)) cacheBase64.delete(k);
+    res.json({ ok: true });
+  })
+);
+
+app.get(
+  '/api/salas/:sid/materiais/:mid/imagens/:iid',
+  wrap(async (req, res) => res.json(S.lerImagem(req.usuario.id, req.params.sid, req.params.mid, req.params.iid)))
 );
 
 function formatarTempo(seg) {
@@ -267,7 +414,7 @@ function slug(s, fb) {
 app.post(
   '/api/analyze',
   wrap(async (req, res) => {
-    const doc = getDoc(req.body.docId);
+    const doc = await getDoc(req, req.body.docId);
     const temPaginas = doc.tipo === 'pdf' && doc.numPaginas > 0;
     const { data, modelo } = await generateJson({
       parts: [...docParts(doc), { text: P.analisePrompt({ temPaginas, numPaginas: doc.numPaginas, nomeArquivo: doc.nome, midia: doc.midia, duracao: doc.duracao ? formatarTempo(doc.duracao) : '' }) }],
@@ -318,8 +465,7 @@ app.post(
         tempos: [...new Set((c.tempos || []).filter(tempoOk).map((t) => formatarTempo(segundos(t))))].slice(0, 6),
       };
     });
-    res.json({
-      analise: {
+    const analise = {
         titulo: String(data.titulo || doc.nome || 'Material de estudo'),
         disciplina: String(data.disciplina || ''),
         resumo: String(data.resumo || ''),
@@ -330,9 +476,9 @@ app.post(
         duracao: doc.duracao || 0,
         secoes,
         conceitos,
-      },
-      modelo,
-    });
+      };
+    S.salvarAnalise(doc.uid, doc.sid, doc.mid, analise);
+    res.json({ analise, modelo });
   })
 );
 
@@ -453,7 +599,7 @@ async function buildBoardRaw(doc, conceito, { pedido = '', quadroAtual = '' } = 
 app.post(
   '/api/board',
   wrap(async (req, res) => {
-    const doc = getDoc(req.body.docId);
+    const doc = await getDoc(req, req.body.docId);
     const conceito = req.body.conceito;
     if (!conceito?.nome) throw new AppError('formato', 'Conceito não informado.', '', '', 400);
     res.json(await buildBoard(doc, conceito, { pedido: req.body.pedido, quadroAtual: req.body.quadroAtual }));
@@ -466,7 +612,7 @@ app.post(
 app.post(
   '/api/ask',
   wrap(async (req, res) => {
-    const doc = getDoc(req.body.docId);
+    const doc = await getDoc(req, req.body.docId);
     const { conceito, acao, pergunta, historico, quadroAtual, nivel } = req.body;
     if (!conceito?.nome) throw new AppError('formato', 'Conceito não informado.', '', '', 400);
     if (acao === 'pergunta' && !String(pergunta || '').trim()) throw new AppError('formato', 'Escreva uma pergunta.', '', '', 400);
@@ -497,7 +643,7 @@ app.post(
 app.post(
   '/api/explain/question',
   wrap(async (req, res) => {
-    const doc = getDoc(req.body.docId);
+    const doc = await getDoc(req, req.body.docId);
     const { data } = await generateJson({
       parts: [...docParts(doc), { text: P.perguntaAbertaPrompt({ conceito: req.body.conceito }) }],
       schema: P.PERGUNTA_ABERTA_SCHEMA,
@@ -511,7 +657,7 @@ app.post(
 app.post(
   '/api/explain/evaluate',
   wrap(async (req, res) => {
-    const doc = getDoc(req.body.docId);
+    const doc = await getDoc(req, req.body.docId);
     const { conceito, pergunta, resposta } = req.body;
     if (!String(resposta || '').trim()) throw new AppError('formato', 'A explicação está vazia.', 'Fale ou escreva sua explicação antes de terminar.', '', 400);
     const { data, modelo } = await generateJson({
@@ -551,7 +697,7 @@ app.post(
 app.post(
   '/api/infographic/direction',
   wrap(async (req, res) => {
-    const doc = getDoc(req.body.docId);
+    const doc = await getDoc(req, req.body.docId);
     const { conceito, duvida, quadroAtual } = req.body;
     const { data, modelo } = await generateJson({
       parts: [...docParts(doc), { text: P.direcaoPrompt({ conceito, duvida, quadroAtual }) }],
@@ -564,13 +710,25 @@ app.post(
   })
 );
 
+// Guarda o infográfico na sala, para ele continuar disponível depois.
+async function guardarImagem(req, img) {
+  if (!req.body?.docId) return img;
+  try {
+    const doc = await getDoc(req, req.body.docId);
+    return { ...img, imagemId: S.salvarImagem(doc.uid, doc.sid, doc.mid, img) };
+  } catch (e) {
+    console.warn('Não foi possível guardar o infográfico:', e.message);
+    return img;
+  }
+}
+
 app.post(
   '/api/infographic/generate',
   wrap(async (req, res) => {
     const d = req.body.direcao;
     if (!d?.titulo) throw new AppError('formato', 'Direção visual ausente.', '', '', 400);
     const img = await generateImage({ parts: [{ text: P.imagemPrompt(d) }] });
-    res.json(img);
+    res.json(await guardarImagem(req, img));
   })
 );
 
@@ -582,14 +740,14 @@ app.post(
     const img = await generateImage({
       parts: [{ inlineData: { mimeType: imagem.mimeType || 'image/png', data: imagem.data } }, { text: P.correcaoImagemPrompt({ instrucao, direcao }) }],
     });
-    res.json(img);
+    res.json(await guardarImagem(req, img));
   })
 );
 
 app.post(
   '/api/infographic/review',
   wrap(async (req, res) => {
-    const doc = getDoc(req.body.docId);
+    const doc = await getDoc(req, req.body.docId);
     const { conceito, direcao, imagem } = req.body;
     const { data, modelo } = await generateJson({
       parts: [...docParts(doc), { inlineData: { mimeType: imagem.mimeType || 'image/png', data: imagem.data } }, { text: P.revisaoImagemPrompt({ conceito, direcao }) }],
@@ -699,8 +857,9 @@ const server = app.listen(PORT, HOST, async () => {
     exec(cmd, () => {});
   }
   if (!hasKey()) console.log('ATENÇÃO: GEMINI_API_KEY não definida. Crie o arquivo .env (veja .env.example).');
-  if (semProtecao) console.log('ATENÇÃO: o servidor está visível na rede sem APP_PASSWORD. As funções foram bloqueadas até você definir uma senha.');
-  else if (exigeLogin) console.log('Acesso protegido por senha (APP_PASSWORD).');
+  console.log(`Dados guardados em: ${S.DATA_DIR}`);
+  if (S.contarUsuarios() === 0)
+    console.log(SO_LOCAL ? 'Primeiro acesso: abra o endereço acima e crie a conta de administrador.' : 'ATENÇÃO: sem usuários e sem APP_PASSWORD. O site fica bloqueado até você definir APP_PASSWORD.');
 });
 server.on('error', (e) => {
   if (e.code === 'EADDRINUSE') console.error(`\nA porta ${PORT} já está em uso: a sala de aula provavelmente já está aberta em outra janela. Feche a outra janela ou abra http://localhost:${PORT} no navegador.`);

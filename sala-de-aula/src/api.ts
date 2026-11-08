@@ -16,7 +16,7 @@ export const EVENTO_LOGIN = 'sala-login-necessario';
 /** Versão publicada como artefato do Claude: sem servidor, usa o Claude da conta de quem abre. */
 export const IS_ARTIFACT = import.meta.env.VITE_ARTIFACT === '1';
 
-async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
+async function requisicao<T>(url: string, init: RequestInit = {}): Promise<T> {
   if (IS_ARTIFACT) {
     const { handle } = await import('./artifact/backend');
     try {
@@ -46,16 +46,21 @@ async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
 }
 
 export function postJson<T>(url: string, data: unknown, signal?: AbortSignal) {
-  return request<T>(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data), signal });
+  return requisicao<T>(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data), signal });
 }
 export function postForm<T>(url: string, form: FormData) {
-  return request<T>(url, { method: 'POST', body: form });
+  return requisicao<T>(url, { method: 'POST', body: form });
 }
 export function getJson<T>(url: string) {
-  return request<T>(url);
+  return requisicao<T>(url);
 }
 
 export function toErro(e: unknown): ApiErro {
   if (e instanceof ApiError) return e.erro;
   return { tipo: 'desconhecido', mensagem: e instanceof Error ? e.message : String(e) };
+}
+
+/** PUT, PATCH ou DELETE com corpo JSON. */
+export function request<T = unknown>(url: string, method: 'PUT' | 'PATCH' | 'DELETE', data?: unknown) {
+  return requisicao<T>(url, { method, headers: { 'content-type': 'application/json' }, body: data === undefined ? undefined : JSON.stringify(data) });
 }

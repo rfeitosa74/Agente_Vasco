@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ApiError, IS_ARTIFACT, postForm, postJson, toErro } from './api';
+import { ApiError, getJson, IS_ARTIFACT, postForm, postJson, request, toErro } from './api';
 import { TutorChat, type TutorChatHandle } from './components/TutorChat';
 
 async function sair() {
@@ -9,8 +9,9 @@ async function sair() {
 import { openPdf, type PdfDoc } from './pdf';
 import { prepararArquivo, segundosDe } from './material';
 import { describeBoard, listElements, renderBoardSvg, SVG_KINDS } from '../shared/board.js';
-import type { Analise, ApiErro, BoardState, Conceito, Direcao, ImagemGerada, Material, Mensagem } from './types';
+import type { Analise, ApiErro, BoardState, Conceito, Direcao, ImagemGerada, Material, Mensagem, Sala } from './types';
 import { StartScreen } from './components/StartScreen';
+import { ErrorBox } from './components/ErrorBox';
 import { BoardView } from './components/BoardView';
 import { Notebook } from './components/Notebook';
 import { AskBar, ATALHOS } from './components/AskBar';
@@ -46,7 +47,15 @@ async function toJpegBase64(src: string, maxW = 1024, bg = '#ffffff'): Promise<s
   return c.toDataURL('image/jpeg', 0.85).split(',')[1];
 }
 
-export default function App({ podeSair = false }: { podeSair?: boolean }) {
+/** Quando a aula acontece dentro de uma sala (site com usuários). */
+export interface ContextoSala {
+  sala: Sala;
+  abrir?: string; // id de um material já salvo
+  novo?: Material; // material escolhido agora
+  onVoltar: () => void;
+}
+
+export default function App({ podeSair = false, contexto }: { podeSair?: boolean; contexto?: ContextoSala }) {
   // ------------------------------------------------------------------ material
   const [material, setMaterial] = useState<Material | null>(null);
   const [analise, setAnalise] = useState<Analise | null>(null);
@@ -93,7 +102,9 @@ export default function App({ podeSair = false }: { podeSair?: boolean }) {
       fd.append('texto', m.texto || '');
       fd.append('nome', m.nome);
     }
-    const r = await postForm<{ docId: string }>('/api/documents', fd);
+    if (m.exemplo) fd.append('exemplo', '1');
+    if (m.origem) fd.append('origem', m.origem);
+    const r = await postForm<{ docId: string }>(contexto ? `/api/salas/${contexto.sala.id}/materiais` : '/api/documents', fd);
     docIdRef.current = r.docId;
     return r.docId;
   }, []);
@@ -106,7 +117,7 @@ export default function App({ podeSair = false }: { podeSair?: boolean }) {
       try {
         return await fn(docIdRef.current);
       } catch (e) {
-        if (e instanceof ApiError && e.status === 410 && materialRef.current) {
+        if (e instanceof ApiError && e.status === 410 && materialRef.current && !contexto) {
           await registrar(materialRef.current);
           return fn(docIdRef.current);
         }
@@ -167,7 +178,7 @@ export default function App({ podeSair = false }: { podeSair?: boolean }) {
     try {
       return await fn(docIdRef.current);
     } catch (e) {
-      if (e instanceof ApiError && e.status === 410) {
+      if (e instanceof ApiError && e.status === 410 && !contexto) {
         await registrar(m);
         return fn(docIdRef.current);
       }
@@ -292,7 +303,7 @@ export default function App({ podeSair = false }: { podeSair?: boolean }) {
   const gerarImagem = async (direcao: Direcao, epoch: number, base: InfoState) => {
     setInfo({ ...base, direcao, fase: 'imagem', erro: undefined, etapaErro: undefined });
     try {
-      const img = await postJson<ImagemGerada>('/api/infographic/generate', { direcao });
+      const img = await postJson<ImagemGerada>('/api/infographic/generate', { direcao, docId: docIdRef.current });
       if (epoch !== epochRef.current) return;
       const st: InfoState = { ...base, direcao, fase: 'pronto', versoes: [img], atual: 0, erro: undefined, etapaErro: undefined, revisao: undefined };
       setInfo(st);
@@ -361,7 +372,7 @@ export default function App({ podeSair = false }: { podeSair?: boolean }) {
     const epoch = epochRef.current;
     setInfo({ ...st, fase: 'corrigindo', erro: undefined, etapaErro: undefined });
     try {
-      const img = await postJson<ImagemGerada>('/api/infographic/edit', { imagem: st.versoes[st.atual], instrucao, direcao: st.direcao });
+      const img = await postJson<ImagemGerada>('/api/infographic/edit', { imagem: st.versoes[st.atual], instrucao, direcao: st.direcao, docId: docIdRef.current });
       if (epoch !== epochRef.current) return;
       const versoes = [...st.versoes, img];
       setInfo({ ...st, fase: 'pronto', versoes, atual: versoes.length - 1, revisao: undefined });
@@ -529,6 +540,13 @@ export default function App({ podeSair = false }: { podeSair?: boolean }) {
 
   // ------------------------------------------------------------------ troca de material
   const trocarMaterial = () => {
+    if (contexto) {
+      epochRef.current++;
+      liveRef.current?.end('Você saiu do material.');
+      liveRef.current = null;
+      void salvarAgora().finally(() => contexto.onVoltar());
+      return;
+    }
     epochRef.current++;
     liveRef.current?.end('Material trocado: a conversa foi encerrada para não misturar os materiais.');
     liveRef.current = null;
@@ -551,6 +569,122 @@ export default function App({ podeSair = false }: { podeSair?: boolean }) {
     window.scrollTo({ top: 0 });
   };
 
+  // ------------------------------------------------------------------ salas: abrir e salvar o progresso
+  const baseMaterial = () => {
+    const [sid, mid] = docIdRef.current.split(':');
+    return sid && mid ? `/api/salas/${sid}/materiais/${mid}` : '';
+  };
+  // O último infográfico pronto continua guardado mesmo se uma tentativa nova falhar.
+  const ultimoInfoPronto = useRef<InfoState | null>(null);
+  if (info?.fase === 'pronto') ultimoInfoPronto.current = info;
+  const estadoParaSalvar = () => {
+    const st = S.current;
+    const i = st.info?.fase === 'pronto' ? st.info : ultimoInfoPronto.current;
+    return {
+      conceitoId: st.conceito?.id || '',
+      boards: st.boards,
+      mensagens: st.mensagens.slice(-200),
+      nivel: st.nivel,
+      // infográfico: só o que está pronto; as imagens guardadas ficam no disco
+      info: i && i.fase === 'pronto' ? { ...i, revisao: undefined, versoes: i.versoes.map((v) => (v.imagemId ? { ...v, data: '' } : v)) } : null,
+    };
+  };
+  const ultimoSalvo = useRef('');
+  const salvarAgora = async () => {
+    const url = baseMaterial();
+    if (!contexto || !url || !S.current.analise) return;
+    const estado = estadoParaSalvar();
+    const json = JSON.stringify(estado);
+    if (json === ultimoSalvo.current) return;
+    try {
+      await request(`${url}/estado`, 'PUT', { estado });
+      ultimoSalvo.current = json;
+    } catch {
+      /* tenta de novo na próxima mudança */
+    }
+  };
+  useEffect(() => {
+    if (!contexto || !analise) return;
+    const t = setTimeout(() => void salvarAgora(), 1200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conceitoId, boards, mensagens, nivel, info?.fase, info?.atual, info?.versoes.length]);
+
+  const abrirMaterial = async (materialId: string) => {
+    if (!contexto) return;
+    const epoch = ++epochRef.current;
+    setErroInicio(null);
+    setCarregando('Abrindo o material…');
+    try {
+      const url = `/api/salas/${contexto.sala.id}/materiais/${materialId}`;
+      const r = await getJson<{ meta: any; analise: Analise | null; estado: any; docId: string }>(url);
+      docIdRef.current = r.docId;
+      const meta = r.meta;
+      let mat: Material = {
+        tipo: meta.tipo,
+        nome: meta.nome,
+        texto: meta.texto,
+        numPaginas: meta.numPaginas,
+        midia: meta.midia || undefined,
+        duracao: meta.duracao,
+        origem: meta.origem,
+        exemplo: meta.exemplo,
+      };
+      pdfRef.current = null;
+      if (meta.tipo !== 'texto') {
+        setCarregando('Baixando o arquivo original…');
+        const resp = await fetch(`${url}/arquivo`, { credentials: 'same-origin' });
+        if (!resp.ok) throw new ApiError({ tipo: 'nao_encontrado', mensagem: 'O arquivo original deste material não foi encontrado.' }, resp.status);
+        const arquivo = new File([await resp.blob()], meta.nome, { type: meta.mime || '' });
+        mat = { ...mat, arquivo };
+        if (meta.tipo === 'pdf') pdfRef.current = await openPdf(arquivo);
+      }
+      if (epoch !== epochRef.current) return;
+      let an = r.analise;
+      if (!an) {
+        setCarregando(`Analisando o conteúdo com ${IS_ARTIFACT ? 'o Claude' : 'o Gemini'}… isso pode levar alguns segundos.`);
+        an = (await postJson<{ analise: Analise }>('/api/analyze', { docId: r.docId })).analise;
+      }
+      const e = an === r.analise ? r.estado : null;
+      // infográfico guardado: busca as imagens
+      let infoSalvo: InfoState | null = null;
+      if (e?.info?.versoes?.length) {
+        try {
+          const versoes = await Promise.all(
+            e.info.versoes.map(async (v: ImagemGerada) => (v.imagemId && !v.data ? { ...v, ...(await getJson<{ mimeType: string; data: string }>(`${url}/imagens/${v.imagemId}`)) } : v))
+          );
+          infoSalvo = { ...e.info, versoes };
+        } catch {
+          infoSalvo = null;
+        }
+      }
+      if (epoch !== epochRef.current) return;
+      setBoards(e?.boards || {});
+      setMensagens(e?.mensagens || []);
+      setNivel(e?.nivel || '');
+      setInfo(infoSalvo);
+      ultimoInfoPronto.current = infoSalvo;
+      setMaterial(mat);
+      setAnalise(an);
+      setConceitoId(e?.conceitoId && an.conceitos.some((c) => c.id === e.conceitoId) ? e.conceitoId : an.conceitos[0].id);
+      ultimoSalvo.current = e ? JSON.stringify(e) : '';
+    } catch (err) {
+      if (epoch === epochRef.current) setErroInicio(toErro(err));
+    } finally {
+      if (epoch === epochRef.current) setCarregando(null);
+    }
+  };
+
+  // Ao entrar pela sala: abre o material salvo ou começa o novo.
+  const iniciado = useRef(false);
+  useEffect(() => {
+    if (!contexto || iniciado.current) return;
+    iniciado.current = true;
+    if (contexto.abrir) void abrirMaterial(contexto.abrir);
+    else if (contexto.novo) void comecar(contexto.novo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // "Agora eu explico" e o tutor: silencia o microfone do Live durante a gravação
   const mutadoAntes = useRef<boolean | null>(null);
   useEffect(() => {
@@ -566,6 +700,26 @@ export default function App({ podeSair = false }: { podeSair?: boolean }) {
   }, [explicarAberto]);
 
   // ------------------------------------------------------------------ render
+  if ((!material || !analise) && contexto) {
+    const tentarDeNovo = () => {
+      if (docIdRef.current) void abrirMaterial(docIdRef.current.split(':')[1]);
+      else if (contexto.abrir) void abrirMaterial(contexto.abrir);
+      else if (ultimoMaterial.current) void comecar(ultimoMaterial.current);
+    };
+    return (
+      <main className="start">
+        <button className="btn btn-link voltar" onClick={() => contexto.onVoltar()}>
+          ← Voltar à sala {contexto.sala.nome}
+        </button>
+        {carregando && (
+          <p className="loading-line" aria-live="polite">
+            <span className="spinner" /> {carregando}
+          </p>
+        )}
+        {erroInicio && !carregando && <ErrorBox erro={erroInicio} onRetry={tentarDeNovo} />}
+      </main>
+    );
+  }
   if (!material || !analise) {
     return (
       <>
@@ -587,10 +741,15 @@ export default function App({ podeSair = false }: { podeSair?: boolean }) {
     <div className="app">
       <header className="topbar">
         <h1>Minha sala de aula</h1>
+        {contexto && (
+          <button className="btn btn-link topbar-sala" onClick={trocarMaterial}>
+            ← {contexto.sala.nome}
+          </button>
+        )}
         <span className="topbar-material">
           {material.exemplo && <span className="badge-sample">Exemplo</span>} {analise.titulo}
         </span>
-        {podeSair && (
+        {podeSair && !contexto && (
           <button className="btn btn-link" onClick={sair}>
             Sair
           </button>
@@ -630,6 +789,7 @@ export default function App({ podeSair = false }: { podeSair?: boolean }) {
           onSelect={(id) => void selecionar(id)}
           onVerOriginal={() => setOriginal({})}
           onTrocar={trocarMaterial}
+          rotuloTrocar={contexto ? `Voltar à sala ${contexto.sala.nome}` : undefined}
           onExplicar={() => setExplicarAberto(true)}
           onInfografico={() => conceito && criarInfografico(duvidaAtual(conceito), 'botao')}
           infograficoOcupado={infoOcupado}
