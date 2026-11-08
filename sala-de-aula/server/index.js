@@ -89,6 +89,14 @@ if (S.contarUsuarios() === 0 && SENHA) {
   S.criarUsuario({ usuario: ADMIN_USUARIO, nome: 'Administrador', senha: SENHA, admin: true });
   console.log(`Administrador criado: usuário "${ADMIN_USUARIO}" com a senha de APP_PASSWORD.`);
 }
+// Esqueceu a senha? Com REDEFINIR_ADMIN=sim, o usuário admin volta a usar a senha de
+// APP_PASSWORD (e volta a ser administrador). Depois, apague REDEFINIR_ADMIN.
+if (/^(sim|1|true)$/i.test(process.env.REDEFINIR_ADMIN || '') && SENHA) {
+  const existente = S.listarUsuarios().find((u) => u.usuario === S.normalizarUsuario(ADMIN_USUARIO));
+  if (existente) S.alterarUsuario(existente.id, { senha: SENHA, admin: true });
+  else S.criarUsuario({ usuario: ADMIN_USUARIO, nome: 'Administrador', senha: SENHA, admin: true });
+  console.log(`Senha do usuário "${ADMIN_USUARIO}" redefinida para a de APP_PASSWORD. Apague REDEFINIR_ADMIN no Render.`);
+}
 
 function assinar(uid, exp, versao) {
   return crypto.createHmac('sha256', SEGREDO_SESSAO).update(`${uid}.${exp}.${versao}`).digest('base64url');

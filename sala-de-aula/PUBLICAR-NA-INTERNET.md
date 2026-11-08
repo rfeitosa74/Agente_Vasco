@@ -34,8 +34,11 @@ A chave da OpenAI **não é usada** por este projeto; guarde-a, mas não precisa
 - **Se o seu site já existia no plano grátis:** depois desta atualização, o Render passa a pedir o plano Starter com
   disco. Se ele não mudar sozinho, abra o serviço e, em **Settings → Instance Type**, escolha **Starter**; depois, em
   **Disks**, adicione um disco com *Mount Path* `/var/data` e 1 GB. Sem o disco, as salas somem a cada reinício.
-- **Esqueceu a senha do admin?** Outro administrador pode definir uma nova em **Usuários**. Se for o único, me peça
-  ajuda: a senha do `APP_PASSWORD` só vale para criar o primeiro administrador.
+- **Esqueceu a senha do admin?** No serviço do Render, abra **Environment**: o valor de `APP_PASSWORD` (clique no
+  olho para ver) é a senha do `admin`, a menos que você a tenha trocado em **Minha conta**. Se mesmo assim não entrar:
+  1. em **Environment**, coloque em `APP_PASSWORD` a senha que quer usar e crie `REDEFINIR_ADMIN` com o valor `sim`;
+  2. clique em **Save Changes** e espere o site reiniciar; entre com `admin` e essa senha;
+  3. volte em **Environment** e apague `REDEFINIR_ADMIN` (senão a senha volta a ser redefinida a cada reinício).
 - **Trocar a chave do Gemini:** no serviço, abra **Environment**, edite o valor e clique em **Save Changes**.
 - **Trocar senhas:** cada pessoa troca a própria em **Minha conta**; o administrador define a de qualquer usuário em
   **Usuários**. Trocar a senha desconecta os outros aparelhos dessa pessoa.
