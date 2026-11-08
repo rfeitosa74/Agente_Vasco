@@ -47,3 +47,19 @@ test('salas e materiais ficam separados por usuário', async () => {
   S.removerSala(a.id, sala.id);
   assert.deepEqual(S.listarSalas(a.id), []);
 });
+
+test('trocar o perfil (aluno ↔ administrador) mantém as salas e o progresso', () => {
+  const adm = S.criarUsuario({ usuario: 'mae', senha: '123456', admin: true });
+  const aluno = S.criarUsuario({ usuario: 'aluno1', senha: '123456' });
+  const sala = S.criarSala(aluno.id, { nome: 'História' });
+  const m = S.criarMaterial(aluno.id, sala.id, { tipo: 'texto', nome: 'Grécia' }, 'texto');
+  S.salvarEstado(aluno.id, sala.id, m.id, { conceitoId: 'polis' });
+  const versao = S.buscarUsuario(aluno.id).versaoSenha;
+  assert.equal(S.alterarUsuario(aluno.id, { admin: true }).admin, true);
+  assert.equal(S.alterarUsuario(aluno.id, { admin: false }).admin, false);
+  assert.equal(S.buscarUsuario(aluno.id).versaoSenha, versao, 'trocar perfil não encerra a sessão');
+  assert.ok(S.verificarLogin('aluno1', '123456'), 'a senha continua a mesma');
+  assert.deepEqual(S.listarSalas(aluno.id).map((x) => x.nome), ['História']);
+  assert.deepEqual(S.lerMaterial(aluno.id, sala.id, m.id).estado, { conceitoId: 'polis' });
+  assert.ok(adm.admin);
+});

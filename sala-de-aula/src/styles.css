@@ -389,3 +389,4 @@ audio.midia-player { background: none; }
 .aviso-dados { max-width: 1120px; margin: 18px auto 0; background: #fde9e4; border: 2px solid var(--coral); border-radius: var(--radius); padding: 14px 20px; }
 .aviso-dados strong { color: var(--coral-ink); font-size: 1.08rem; }
 .aviso-dados p, .aviso-dados ol { margin: 8px 0; }
+.perfil-select { padding: 6px 10px; border-radius: 8px; border: 2px solid #e2d7bc; background: #fff; font-weight: 600; }

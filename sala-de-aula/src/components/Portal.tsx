@@ -394,6 +394,8 @@ function UsuariosScreen({ eu }: { eu: Usuario }) {
   const [aviso, setAviso] = useState('');
   const [senhaDe, setSenhaDe] = useState<Usuario | null>(null);
   const [removendo, setRemovendo] = useState<Usuario | null>(null);
+  const [mudandoPerfil, setMudandoPerfil] = useState<{ u: Usuario; admin: boolean } | null>(null);
+  const [erroPerfil, setErroPerfil] = useState<ApiErro | null>(null);
   const carregar = () =>
     getJson<Usuario[]>('/api/usuarios')
       .then((l) => (setLista(l), setErro(null)))
@@ -427,7 +429,21 @@ function UsuariosScreen({ eu }: { eu: Usuario }) {
                 <code>{u.usuario}</code>
               </td>
               <td>{u.totalSalas}</td>
-              <td>{u.admin ? 'Administrador' : 'Aluno'}</td>
+              <td>
+                {u.id === eu.id ? (
+                  'Administrador (você)'
+                ) : (
+                  <select
+                    className="perfil-select"
+                    aria-label={`Perfil de ${u.nome}`}
+                    value={u.admin ? 'admin' : 'aluno'}
+                    onChange={(e) => setMudandoPerfil({ u, admin: e.target.value === 'admin' })}
+                  >
+                    <option value="aluno">Aluno</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                )}
+              </td>
               <td className="tabela-acoes">
                 <button className="btn btn-link" onClick={() => setSenhaDe(u)}>
                   Definir senha
@@ -491,6 +507,41 @@ function UsuariosScreen({ eu }: { eu: Usuario }) {
               setAviso(`Senha de “${senhaDe.usuario}” alterada. As sessões abertas dessa pessoa foram encerradas.`);
             }}
           />
+        </Modal>
+      )}
+      {mudandoPerfil && (
+        <Modal title="Alterar perfil" onClose={() => (setMudandoPerfil(null), setErroPerfil(null))}>
+          <p>
+            Mudar <b>{mudandoPerfil.u.nome}</b> ({mudandoPerfil.u.usuario}) para <b>{mudandoPerfil.admin ? 'Administrador' : 'Aluno'}</b>?
+          </p>
+          <p className="muted">
+            {mudandoPerfil.admin
+              ? 'Administradores podem criar e remover usuários e definir senhas.'
+              : 'Alunos usam só as próprias salas e não veem o menu Usuários.'}{' '}
+            As salas, os materiais e o progresso dessa pessoa continuam como estão.
+          </p>
+          {erroPerfil && <ErrorBox erro={erroPerfil} />}
+          <div className="modal-actions">
+            <button
+              className="btn btn-primary"
+              onClick={async () => {
+                try {
+                  await request(`/api/usuarios/${mudandoPerfil.u.id}`, 'PATCH', { admin: mudandoPerfil.admin });
+                  setAviso(`Perfil de “${mudandoPerfil.u.usuario}” alterado para ${mudandoPerfil.admin ? 'Administrador' : 'Aluno'}. Salas e progresso foram mantidos.`);
+                  setMudandoPerfil(null);
+                  setErroPerfil(null);
+                  void carregar();
+                } catch (err) {
+                  setErroPerfil(toErro(err));
+                }
+              }}
+            >
+              Confirmar
+            </button>
+            <button className="btn" onClick={() => (setMudandoPerfil(null), setErroPerfil(null))}>
+              Cancelar
+            </button>
+          </div>
         </Modal>
       )}
       {removendo && (
