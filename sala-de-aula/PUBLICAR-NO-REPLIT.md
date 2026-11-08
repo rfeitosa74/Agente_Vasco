@@ -23,6 +23,8 @@ Você vai precisar de: a **chave do Gemini** (começa com `AIza`) e uma **senha*
 ## Passo 3 — Criar o armazenamento permanente
 1. Abra a ferramenta **Object Storage** (procure por “Object Storage” na lista de ferramentas).
 2. Clique em **Create new bucket** e confirme o nome sugerido.
+3. Se depois aparecer o aviso vermelho com “A bucket name is needed”, copie o identificador do bucket (na tela do
+   Object Storage) e crie em **Secrets** a variável `REPLIT_BUCKET_ID` com esse valor.
 
 ## Passo 4 — Testar
 Clique em **Run**. Depois de 1 ou 2 minutos aparece a tela de entrada na janela de visualização. Entre com o usuário

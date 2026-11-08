@@ -12,7 +12,10 @@ const PREFIXO = 'sala-de-aula/';
 
 async function destinoReplit() {
   const { Client } = await import('@replit/object-storage');
-  const client = new Client();
+  // O bucket vem da configuração do Replit (defaultBucketID) ou, se ela não for
+  // reconhecida, da variável REPLIT_BUCKET_ID.
+  const bucketId = process.env.REPLIT_BUCKET_ID || process.env.REPLIT_DEFAULT_BUCKET_ID || '';
+  const client = bucketId ? new Client({ bucketId }) : new Client();
   const ok = (r, acao) => {
     if (!r.ok) throw new Error(`Object Storage: falha ao ${acao}: ${r.error?.message || JSON.stringify(r.error)}`);
     return r.value;
