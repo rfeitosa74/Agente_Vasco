@@ -313,3 +313,9 @@ code { background: #ece3cc; padding: 1px 6px; border-radius: 6px; font-size: 0.9
   .board-title { font-size: 1.4rem; }
   .dock-bar { padding: 8px 12px; }
 }
+
+/* login */
+.login { max-width: 520px; }
+.login-card { gap: 12px; }
+.login-card label { font-weight: 700; }
+.topbar .btn-link { margin-left: auto; }

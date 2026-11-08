@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, postForm, postJson, toErro } from './api';
+
+async function sair() {
+  await postJson('/api/logout', {}).catch(() => {});
+  window.location.reload();
+}
 import { openPdf, type PdfDoc } from './pdf';
 import { describeBoard, listElements, renderBoardSvg, SVG_KINDS } from '../shared/board.js';
 import type { Analise, ApiErro, BoardState, Conceito, Direcao, ImagemGerada, Material, Mensagem } from './types';
@@ -39,7 +44,7 @@ async function toJpegBase64(src: string, maxW = 1024, bg = '#ffffff'): Promise<s
   return c.toDataURL('image/jpeg', 0.85).split(',')[1];
 }
 
-export default function App() {
+export default function App({ podeSair = false }: { podeSair?: boolean }) {
   // ------------------------------------------------------------------ material
   const [material, setMaterial] = useState<Material | null>(null);
   const [analise, setAnalise] = useState<Analise | null>(null);
@@ -559,6 +564,11 @@ export default function App() {
         <span className="topbar-material">
           {material.exemplo && <span className="badge-sample">Exemplo</span>} {analise.titulo}
         </span>
+        {podeSair && (
+          <button className="btn btn-link" onClick={sair}>
+            Sair
+          </button>
+        )}
       </header>
       <main className="classroom">
         <div className="main-col">

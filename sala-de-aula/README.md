@@ -16,6 +16,8 @@ Tudo em português do Brasil, pensado para um aluno do fim do 6º ano.
 
 ## 2. Instalar e rodar
 
+**Para publicar na internet com senha, siga [PUBLICAR-NA-INTERNET.md](PUBLICAR-NA-INTERNET.md)** (Render; você só cola a chave e a senha num formulário).
+
 **No Windows, siga o [passo a passo sem comandos](PASSO-A-PASSO-WINDOWS.md)**: basta dar dois cliques em `INICIAR-SALA-DE-AULA.bat`.
 
 Pelo terminal (qualquer sistema):
@@ -38,9 +40,9 @@ mostra qual modelo será usado em cada função (análise, tutor por voz e infog
 - A chave fica **só no servidor** (`.env`, que não vai para o Git). O navegador nunca recebe a chave.
 - O tutor por voz usa um **token temporário de uso único** criado pelo servidor (válido por 30 minutos, e só pode
   iniciar uma sessão dentro de 2 minutos).
-- Por padrão o servidor só aceita conexões do próprio computador (`HOST=127.0.0.1`). Para usar num tablet da mesma
-  rede, defina `HOST=0.0.0.0` **e** um `ACCESS_CODE` no `.env`. Atenção: o navegador só libera o microfone em
-  `localhost` ou em HTTPS, então num outro aparelho a voz exige um endereço HTTPS (por exemplo, com um proxy reverso).
+- **Login com senha** (`APP_PASSWORD`): obrigatório quando o site está na internet; sem senha, o servidor bloqueia todas
+  as funções. A sessão fica num cookie seguro por 30 dias; 8 senhas erradas bloqueiam o endereço por 15 minutos.
+- No computador local (`HOST=127.0.0.1`, o padrão) a senha é opcional.
 
 ## 3. Modelos usados
 

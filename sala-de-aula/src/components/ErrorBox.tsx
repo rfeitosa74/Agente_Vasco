@@ -11,7 +11,8 @@ const TITULOS: Record<string, string> = {
   rede: 'Sem conexão',
   sem_imagem: 'Nenhuma imagem recebida',
   nao_analisavel: 'Material não analisado',
-  acesso: 'Código de acesso',
+  acesso: 'Acesso negado',
+  login: 'Entre novamente',
 };
 
 export function ErrorBox({ erro, onRetry, dark = false, retryLabel = 'Tentar novamente' }: { erro: ApiErro; onRetry?: () => void; dark?: boolean; retryLabel?: string }) {

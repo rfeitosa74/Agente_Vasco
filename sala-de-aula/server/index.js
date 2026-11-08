@@ -28,23 +28,98 @@ import { describeBoard, renderBoardSvg, SVG_KINDS, validateBoard } from '../shar
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const PORT = Number(process.env.PORT || 5173);
-const HOST = process.env.HOST || '127.0.0.1';
-const ACCESS_CODE = process.env.ACCESS_CODE || '';
-const isProd = process.env.NODE_ENV === 'production' || process.argv.includes('--producao');
+// Na nuvem (Render) o servidor precisa ouvir em todas as interfaces.
+const NA_NUVEM = !!process.env.RENDER;
+const HOST = process.env.HOST || (NA_NUVEM ? '0.0.0.0' : '127.0.0.1');
+const SENHA = process.env.APP_PASSWORD || process.env.ACCESS_CODE || '';
+const SO_LOCAL = HOST === '127.0.0.1' || HOST === 'localhost';
+const isProd = process.env.NODE_ENV === 'production' || process.argv.includes('--producao') || NA_NUVEM;
 const abrirNavegador = process.argv.includes('--abrir');
 
 const app = express();
+app.set('trust proxy', 1); // HTTPS termina no proxy do Render
 app.use(express.json({ limit: '40mb' }));
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
 
 // ---------------------------------------------------------------------------
-// Código de acesso opcional (recomendado se o servidor ficar visível na rede)
+// Login com senha (obrigatório quando o site fica na internet)
 // ---------------------------------------------------------------------------
+const COOKIE = 'sala_sessao';
+const DURACAO_SESSAO = 30 * 24 * 60 * 60 * 1000; // 30 dias
+// Chave de assinatura derivada da senha: trocar a senha encerra todas as sessões.
+const SEGREDO_SESSAO = crypto.createHmac('sha256', SENHA || 'sem-senha').update('minha-sala-de-aula/sessao').digest();
+
+function assinar(exp) {
+  return crypto.createHmac('sha256', SEGREDO_SESSAO).update(String(exp)).digest('base64url');
+}
+function sessaoValida(req) {
+  const c = Object.fromEntries(
+    String(req.headers.cookie || '')
+      .split(';')
+      .map((p) => p.trim().split('='))
+      .filter((p) => p.length === 2)
+  )[COOKIE];
+  if (!c) return false;
+  const [exp, sig] = c.split('.');
+  if (!exp || !sig || Number(exp) < Date.now()) return false;
+  const esperado = Buffer.from(assinar(exp));
+  const recebido = Buffer.from(sig);
+  return esperado.length === recebido.length && crypto.timingSafeEqual(esperado, recebido);
+}
+function iguais(a, b) {
+  const ha = crypto.createHash('sha256').update(String(a)).digest();
+  const hb = crypto.createHash('sha256').update(String(b)).digest();
+  return crypto.timingSafeEqual(ha, hb);
+}
+
+// Proteção contra tentativas repetidas: 8 erros em 15 minutos bloqueiam o endereço.
+const tentativas = new Map();
+function bloqueado(ip) {
+  const t = tentativas.get(ip);
+  return t && t.n >= 8 && Date.now() - t.desde < 15 * 60 * 1000;
+}
+function registrarErro(ip) {
+  const t = tentativas.get(ip);
+  if (!t || Date.now() - t.desde > 15 * 60 * 1000) tentativas.set(ip, { n: 1, desde: Date.now() });
+  else t.n++;
+}
+
+const exigeLogin = !!SENHA;
+const semProtecao = !SENHA && !SO_LOCAL; // na internet sem senha: não libera nada
+
+app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
+app.get('/api/session', (req, res) => {
+  res.json({ exigeLogin, logado: !exigeLogin || sessaoValida(req), configuracaoPendente: semProtecao });
+});
+
+app.post('/api/login', (req, res) => {
+  const ip = req.ip || 'desconhecido';
+  if (!exigeLogin) return res.json({ ok: true });
+  if (bloqueado(ip))
+    return res.status(429).json({ erro: { tipo: 'acesso', mensagem: 'Muitas tentativas erradas.', comoResolver: 'Espere 15 minutos e tente de novo.' } });
+  if (!iguais(req.body?.senha || '', SENHA)) {
+    registrarErro(ip);
+    return res.status(401).json({ erro: { tipo: 'acesso', mensagem: 'Senha incorreta.' } });
+  }
+  tentativas.delete(ip);
+  const exp = Date.now() + DURACAO_SESSAO;
+  res.cookie(COOKIE, `${exp}.${assinar(exp)}`, { httpOnly: true, secure: req.secure, sameSite: 'strict', maxAge: DURACAO_SESSAO, path: '/' });
+  res.json({ ok: true });
+});
+
+app.post('/api/logout', (_req, res) => {
+  res.clearCookie(COOKIE, { path: '/' });
+  res.json({ ok: true });
+});
+
 app.use('/api', (req, res, next) => {
-  if (!ACCESS_CODE || req.path === '/status') return next();
-  const got = req.get('x-access-code') || '';
-  const ok = got.length === ACCESS_CODE.length && crypto.timingSafeEqual(Buffer.from(got), Buffer.from(ACCESS_CODE));
-  if (!ok) return res.status(401).json({ erro: { tipo: 'acesso', mensagem: 'Código de acesso incorreto.', comoResolver: 'Digite o código definido em ACCESS_CODE no servidor.' } });
+  if (semProtecao)
+    return res.status(503).json({
+      erro: { tipo: 'configuracao', mensagem: 'O site está na internet sem senha, por isso foi bloqueado.', comoResolver: 'Defina APP_PASSWORD nas configurações do servidor (no Render: Environment) e reinicie.' },
+    });
+  if (exigeLogin && !sessaoValida(req))
+    return res.status(401).json({ erro: { tipo: 'login', mensagem: 'Entre com a senha para continuar.' } });
   next();
 });
 
@@ -180,11 +255,19 @@ app.post(
 // ---------------------------------------------------------------------------
 // Quadro: gerar → validar → desenhar → revisar → corrigir
 // ---------------------------------------------------------------------------
+// Fonte incluída no projeto: a imagem de revisão tem texto mesmo em servidores sem fontes instaladas.
+const FONTES_REVISAO = {
+  loadSystemFonts: true,
+  fontFiles: ['DejaVuSans.ttf', 'DejaVuSans-Bold.ttf'].map((f) => path.join(__dirname, 'fonts', f)),
+  defaultFontFamily: 'DejaVu Sans',
+  sansSerifFamily: 'DejaVu Sans',
+};
+
 function boardPng(board) {
   if (!SVG_KINDS.includes(board.tipo)) return null;
   try {
     const svg = renderBoardSvg(board, { standalone: true });
-    const png = new Resvg(svg, { fitTo: { mode: 'width', value: 1000 }, font: { loadSystemFonts: true } }).render().asPng();
+    const png = new Resvg(svg, { fitTo: { mode: 'width', value: 1000 }, font: FONTES_REVISAO }).render().asPng();
     return png.toString('base64');
   } catch (e) {
     console.warn('Falha ao desenhar o quadro para revisão:', e.message);
@@ -473,9 +556,8 @@ app.post(
 app.get(
   '/api/status',
   wrap(async (req, res) => {
-    const out = { chaveConfigurada: hasKey(), exigeCodigo: !!ACCESS_CODE };
+    const out = { chaveConfigurada: hasKey() };
     if (req.query.verificar && hasKey()) {
-      if (ACCESS_CODE && req.get('x-access-code') !== ACCESS_CODE) return res.json(out);
       await listModels(true).catch(() => {});
       out.modelos = await modelStatus();
     }
@@ -516,15 +598,15 @@ if (isProd) {
 const server = app.listen(PORT, HOST, async () => {
   const url = `http://${HOST === '0.0.0.0' || HOST === '127.0.0.1' ? 'localhost' : HOST}:${PORT}`;
   console.log(`\nMinha sala de aula: ${url}`);
-  console.log('Deixe esta janela aberta enquanto o Luan estuda. Para desligar, feche a janela.');
+  if (!NA_NUVEM) console.log('Deixe esta janela aberta enquanto o Luan estuda. Para desligar, feche a janela.');
   if (abrirNavegador) {
     const { exec } = await import('node:child_process');
     const cmd = process.platform === 'win32' ? `start "" "${url}"` : process.platform === 'darwin' ? `open "${url}"` : `xdg-open "${url}"`;
     exec(cmd, () => {});
   }
   if (!hasKey()) console.log('ATENÇÃO: GEMINI_API_KEY não definida. Crie o arquivo .env (veja .env.example).');
-  if (HOST !== '127.0.0.1' && HOST !== 'localhost' && !ACCESS_CODE)
-    console.log('ATENÇÃO: o servidor está visível na rede sem ACCESS_CODE. Qualquer pessoa na rede poderá usar sua chave.');
+  if (semProtecao) console.log('ATENÇÃO: o servidor está visível na rede sem APP_PASSWORD. As funções foram bloqueadas até você definir uma senha.');
+  else if (exigeLogin) console.log('Acesso protegido por senha (APP_PASSWORD).');
 });
 server.on('error', (e) => {
   if (e.code === 'EADDRINUSE') console.error(`\nA porta ${PORT} já está em uso: a sala de aula provavelmente já está aberta em outra janela. Feche a outra janela ou abra http://localhost:${PORT} no navegador.`);

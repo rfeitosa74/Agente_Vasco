@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getAccessCode, getJson, setAccessCode, toErro } from '../api';
+import { getJson, toErro } from '../api';
 import type { ApiErro, Material } from '../types';
 import { ErrorBox } from './ErrorBox';
 
@@ -10,7 +10,6 @@ interface Sample {
 }
 interface Status {
   chaveConfigurada: boolean;
-  exigeCodigo: boolean;
   modelos?: Record<string, { ok: boolean; modelo?: string; erro?: ApiErro }>;
 }
 
@@ -32,7 +31,6 @@ export function StartScreen({ carregando, erro, onStart, onRetry }: Props) {
   const [status, setStatus] = useState<Status | null>(null);
   const [verificando, setVerificando] = useState(false);
   const [erroStatus, setErroStatus] = useState<ApiErro | null>(null);
-  const [codigo, setCodigo] = useState(getAccessCode());
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -76,22 +74,6 @@ export function StartScreen({ carregando, erro, onStart, onRetry }: Props) {
           <code>GEMINI_API_KEY=…</code> (veja o README) e reinicie o servidor.
         </div>
       )}
-      {status?.exigeCodigo && (
-        <div className="setup-note">
-          <label>
-            Código de acesso desta sala:{' '}
-            <input
-              type="password"
-              value={codigo}
-              onChange={(e) => {
-                setCodigo(e.target.value);
-                setAccessCode(e.target.value);
-              }}
-            />
-          </label>
-        </div>
-      )}
-
       <div className="start-grid">
         <section className="start-card">
           <h2>Enviar um PDF</h2>

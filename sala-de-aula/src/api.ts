@@ -10,20 +10,13 @@ export class ApiError extends Error {
   }
 }
 
-export function getAccessCode() {
-  return localStorage.getItem('sala-codigo') || '';
-}
-export function setAccessCode(c: string) {
-  localStorage.setItem('sala-codigo', c);
-}
+/** Avisado quando o servidor pede login (sessão expirada ou ausente). */
+export const EVENTO_LOGIN = 'sala-login-necessario';
 
 async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
-  const headers = new Headers(init.headers);
-  const code = getAccessCode();
-  if (code) headers.set('x-access-code', code);
   let res: Response;
   try {
-    res = await fetch(url, { ...init, headers });
+    res = await fetch(url, { ...init, credentials: 'same-origin' });
   } catch (e) {
     throw new ApiError({ tipo: 'rede', mensagem: 'Não foi possível falar com o servidor da sala de aula.', comoResolver: 'Confira se o servidor (npm run dev) está rodando.', detalhe: String(e) }, 0);
   }
@@ -34,6 +27,7 @@ async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
     /* sem corpo JSON */
   }
   if (!res.ok) {
+    if (res.status === 401 && body?.erro?.tipo === 'login') window.dispatchEvent(new Event(EVENTO_LOGIN));
     throw new ApiError(body?.erro || { tipo: 'desconhecido', mensagem: `Erro ${res.status} no servidor.` }, res.status);
   }
   return body as T;
