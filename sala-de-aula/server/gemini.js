@@ -136,7 +136,7 @@ export function toAppError(e, acao = 'falar com o Gemini') {
   if (status === 413 || m.includes('too large') || m.includes('payload size'))
     return new AppError('tamanho', 'O arquivo é grande demais para ser analisado.', 'Tente um PDF menor (até 20 MB) ou divida o material.', det, 413);
   if (status >= 500)
-    return new AppError('servico', 'O serviço do Gemini está instável no momento.', 'Tente novamente em instantes.', det, 502);
+    return new AppError('servico', 'O serviço do Gemini está instável no momento.', 'Espere um ou dois minutos e tente novamente. Se continuar, abra o detalhe técnico e me mande o texto.', det, 502);
   if (m.includes('fetch failed') || m.includes('enotfound') || m.includes('econnrefused') || m.includes('network'))
     return new AppError('rede', 'Não foi possível conectar ao Gemini.', 'Confira a conexão com a internet do computador que roda o servidor.', det, 502);
   return new AppError('desconhecido', `Não foi possível ${acao}.`, 'Tente novamente. Se o erro continuar, veja o detalhe técnico.', det, status >= 400 && status < 600 ? status : 500);
@@ -158,10 +158,78 @@ function blockedReason(resp) {
   return '';
 }
 
+// ---------------------------------------------------------------------------
+// Resiliência: novas tentativas e troca de modelo quando o Gemini falha
+// ---------------------------------------------------------------------------
+const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+/** Falhas passageiras: erro interno, sobrecarga, tempo esgotado, conexão. */
+export function falhaPassageira(e) {
+  const st = Number(e?.status) || 0;
+  const m = String(e?.message || '').toLowerCase();
+  return st >= 500 || st === 408 || /overloaded|unavailable|internal error|deadline|timed? ?out|fetch failed|econnreset|socket hang up|etimedout|resposta vazia|json inválido/.test(m);
+}
+const ESPERA_BASE = Number(process.env.GEMINI_ESPERA_MS || 1500);
+
+/** Repete a chamada em falhas passageiras, esperando cada vez mais. */
+export async function comRetentativas(fn, tentativas = 3) {
+  for (let i = 0; ; i++) {
+    try {
+      return await fn(i);
+    } catch (e) {
+      if (!falhaPassageira(e) || i >= tentativas - 1) throw e;
+      const ms = ESPERA_BASE * Math.pow(2.5, i) + Math.random() * 400;
+      console.warn(`[gemini] falha passageira (${e?.status || ''} ${String(e?.message || e).slice(0, 120)}); nova tentativa em ${Math.round(ms)} ms`);
+      await espera(ms);
+    }
+  }
+}
+
+// Modelos que falharam há pouco ficam por último durante 5 minutos.
+const modelosComProblema = new Map();
+async function modelosDeTexto() {
+  const models = await listModels();
+  let lista = CANDIDATOS.texto.filter(Boolean).filter((c) => models.has(c));
+  if (!lista.length) lista = [await resolveModel('texto')];
+  const agora = Date.now();
+  const ruim = (m) => ((modelosComProblema.get(m) || 0) > agora ? 1 : 0);
+  return [...new Set(lista)].sort((a, b) => ruim(a) - ruim(b)).slice(0, 3);
+}
+
+/** Executa `fn(modelo, tentativa)` com novas tentativas e, se preciso, com outros modelos de texto. */
+async function comModelosDeTexto(acao, fn, modeloFixo) {
+  const modelos = modeloFixo ? [modeloFixo] : await modelosDeTexto();
+  const falhas = [];
+  for (const modelo of modelos) {
+    try {
+      return await comRetentativas((i) => fn(modelo, i));
+    } catch (e) {
+      if (e instanceof AppError && !falhaPassageira(e)) throw e;
+      const st = Number(e?.status) || 0;
+      if (!falhaPassageira(e) && st !== 404) throw toAppError(e, acao);
+      falhas.push(`${modelo}: ${st || ''} ${String(e?.message || e).slice(0, 200)}`);
+      modelosComProblema.set(modelo, Date.now() + 5 * 60 * 1000);
+      console.warn(`[gemini] ${modelo} falhou ao ${acao}; ${modelos.indexOf(modelo) < modelos.length - 1 ? 'tentando outro modelo' : 'sem outros modelos'}`);
+    }
+  }
+  throw new AppError(
+    'servico',
+    `O Gemini não conseguiu ${acao} agora, mesmo depois de várias tentativas${modelos.length > 1 ? ` com ${modelos.length} modelos diferentes` : ''}.`,
+    'Espere um ou dois minutos e clique em "Tentar novamente". Se continuar, abra o detalhe técnico e me mande o texto.',
+    falhas.join('\n'),
+    502
+  );
+}
+
+function respostaVazia(resp, acao) {
+  const r = blockedReason(resp);
+  // Bloqueio de segurança não melhora com nova tentativa; resposta vazia, sim.
+  if (r) return new AppError('sem_resposta', `O Gemini não respondeu ao pedido de ${acao} (${r}).`, 'Tente reformular o pedido.', r, 422);
+  return Object.assign(new Error('resposta vazia do Gemini'), { status: 502 });
+}
+
 /** Gera uma resposta JSON validada pelo esquema. */
 export async function generateJson({ parts, schema, system, temperature = 0.4, acao, model }) {
-  const modelo = model || (await resolveModel('texto'));
-  const call = (withSchema) =>
+  const call = (modelo, withSchema) =>
     ai().models.generateContent({
       model: modelo,
       contents: [
@@ -179,49 +247,37 @@ export async function generateJson({ parts, schema, system, temperature = 0.4, a
         ...(withSchema ? { responseJsonSchema: schema } : {}),
       },
     });
-  let resp;
-  try {
-    resp = await call(true);
-  } catch (e) {
-    // Se o esquema for recusado por complexidade, tenta com o esquema no texto.
-    if (Number(e?.status) === 400 && /schema|too many states|nesting/i.test(String(e?.message))) {
+  return comModelosDeTexto(
+    acao,
+    async (modelo, tentativa) => {
+      let resp;
+      // Na última tentativa, manda o esquema no texto: alguns erros internos vêm do esquema.
+      const comEsquema = tentativa < 2;
       try {
-        resp = await call(false);
-      } catch (e2) {
-        throw toAppError(e2, acao);
+        resp = await call(modelo, comEsquema);
+      } catch (e) {
+        if (comEsquema && Number(e?.status) === 400 && /schema|too many states|nesting/i.test(String(e?.message))) resp = await call(modelo, false);
+        else throw e;
       }
-    } else throw toAppError(e, acao);
-  }
-  const txt = resp.text;
-  if (!txt) {
-    const r = blockedReason(resp);
-    throw new AppError('sem_resposta', `O Gemini não devolveu resposta ao ${acao}${r ? ` — ${r}` : ''}.`, 'Tente novamente.', r, 502);
-  }
-  try {
-    return { data: JSON.parse(txt), modelo: resp.modelVersion || modelo };
-  } catch {
-    throw new AppError('formato', `A resposta do Gemini ao ${acao} veio em formato inválido.`, 'Tente novamente.', txt.slice(0, 300), 502);
-  }
+      const txt = resp.text;
+      if (!txt) throw respostaVazia(resp, acao);
+      try {
+        return { data: JSON.parse(txt), modelo: resp.modelVersion || modelo };
+      } catch {
+        throw Object.assign(new Error(`JSON inválido na resposta: ${txt.slice(0, 120)}`), { status: 502 });
+      }
+    },
+    model
+  );
 }
 
 /** Gera texto simples. */
 export async function generateText({ parts, system, temperature = 0.2, acao }) {
-  const modelo = await resolveModel('texto');
-  let resp;
-  try {
-    resp = await ai().models.generateContent({
-      model: modelo,
-      contents: [{ role: 'user', parts }],
-      config: { systemInstruction: system, temperature },
-    });
-  } catch (e) {
-    throw toAppError(e, acao);
-  }
-  if (!resp.text) {
-    const r = blockedReason(resp);
-    throw new AppError('sem_resposta', `O Gemini não devolveu resposta ao ${acao}${r ? ` — ${r}` : ''}.`, 'Tente novamente.', r, 502);
-  }
-  return { text: resp.text, modelo: resp.modelVersion || modelo };
+  return comModelosDeTexto(acao, async (modelo) => {
+    const resp = await ai().models.generateContent({ model: modelo, contents: [{ role: 'user', parts }], config: { systemInstruction: system, temperature } });
+    if (!resp.text) throw respostaVazia(resp, acao);
+    return { text: resp.text, modelo: resp.modelVersion || modelo };
+  });
 }
 
 /** Gera (ou edita) uma imagem com o Nano Banana Pro. */
@@ -236,14 +292,14 @@ export async function generateImage({ parts }) {
   let resp;
   let configUsada = { aspectRatio: '16:9', imageSize: '2K' };
   try {
-    resp = await call(configUsada);
+    resp = await comRetentativas(() => call(configUsada));
   } catch (e) {
     const m = String(e?.message || '').toLowerCase();
     // Se a API recusar especificamente o tamanho, tenta só com a proporção e avisa.
     if (Number(e?.status) === 400 && (m.includes('image_size') || m.includes('imagesize'))) {
       configUsada = { aspectRatio: '16:9' };
       try {
-        resp = await call(configUsada);
+        resp = await comRetentativas(() => call(configUsada));
       } catch (e2) {
         throw toAppError(e2, 'gerar o infográfico');
       }
@@ -279,12 +335,12 @@ export async function generateImage({ parts }) {
 export async function enviarArquivo(buffer, mimeType, nome) {
   let f;
   try {
-    f = await ai().files.upload({ file: new Blob([buffer], { type: mimeType }), config: { mimeType, displayName: String(nome || 'material').slice(0, 100) } });
+    f = await comRetentativas(() => ai().files.upload({ file: new Blob([buffer], { type: mimeType }), config: { mimeType, displayName: String(nome || 'material').slice(0, 100) } }));
     const inicio = Date.now();
     while (String(f.state) === 'PROCESSING') {
       if (Date.now() - inicio > 5 * 60 * 1000) throw new AppError('tempo', 'O Gemini demorou demais para processar o arquivo.', 'Tente um arquivo menor ou mais curto.', '', 504);
       await new Promise((r) => setTimeout(r, 2500));
-      f = await ai().files.get({ name: f.name });
+      f = await comRetentativas(() => ai().files.get({ name: f.name }));
     }
   } catch (e) {
     throw toAppError(e, 'enviar o arquivo ao Gemini');

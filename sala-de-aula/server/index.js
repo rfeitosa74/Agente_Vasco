@@ -12,6 +12,7 @@ import { Modality } from '@google/genai';
 import {
   ai,
   AppError,
+  comRetentativas,
   enviarArquivo,
   generateImage,
   generateJson,
@@ -777,7 +778,7 @@ app.post(
     const agora = Date.now();
     let token;
     try {
-      token = await ai().authTokens.create({
+      token = await comRetentativas(() => ai().authTokens.create({
         config: {
           uses: 1,
           expireTime: new Date(agora + 30 * 60 * 1000).toISOString(),
@@ -786,7 +787,7 @@ app.post(
           lockAdditionalFields: [],
           httpOptions: { apiVersion: 'v1alpha' },
         },
-      });
+      }));
     } catch (e) {
       throw toAppError(e, 'criar o acesso temporário do tutor por voz');
     }

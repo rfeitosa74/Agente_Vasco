@@ -10,7 +10,7 @@ import { Resvg } from '@resvg/resvg-js';
 const PORT = Number(process.argv[2] || 8787);
 const log = []; // registro de tudo o que o app enviou
 const fx = (n) => JSON.parse(readFileSync(new URL(`./fixtures/${n}.json`, import.meta.url), 'utf8'));
-const opts = { imageError: process.env.FAKE_IMAGE_ERROR || '' };
+const opts = { imageError: process.env.FAKE_IMAGE_ERROR || '', falhas503: 0, quebrado: '' };
 
 const ANALISE_ECLIPSE = {
   analisavel: true,
@@ -169,6 +169,7 @@ const server = http.createServer((req, res) => {
       return send(200, {
         models: [
           { name: 'models/gemini-3.8-flash', supportedGenerationMethods: ['generateContent'] },
+          { name: 'models/gemini-2.5-flash', supportedGenerationMethods: ['generateContent'] },
           { name: 'models/gemini-3.8-live', supportedGenerationMethods: ['bidiGenerateContent'] },
           { name: 'models/gemini-3-pro-image-preview', supportedGenerationMethods: ['generateContent'] },
         ],
@@ -177,6 +178,13 @@ const server = http.createServer((req, res) => {
     if (url.pathname.endsWith('/auth_tokens')) return send(200, { name: 'auth_tokens/fake-token-123' });
     const m = /models\/([^:]+):generateContent/.exec(url.pathname);
     if (m) {
+      // Simula instabilidade do Google: N respostas 503 seguidas, ou um modelo sempre com erro 500.
+      if (!m[1].includes('image') && (opts.quebrado === m[1] || opts.quebrado === 'todos'))
+        return send(500, { error: { code: 500, message: 'An internal error has occurred. Please retry or report in https://developers.generativeai.google/guide/troubleshooting', status: 'INTERNAL' } });
+      if (!m[1].includes('image') && Number(opts.falhas503) > 0) {
+        opts.falhas503 = Number(opts.falhas503) - 1;
+        return send(503, { error: { code: 503, message: 'The model is overloaded. Please try again later.', status: 'UNAVAILABLE' } });
+      }
       const r = handleGenerate(m[1], body);
       return send(r.status || 200, r.body);
     }
