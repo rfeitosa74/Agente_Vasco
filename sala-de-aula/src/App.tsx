@@ -55,6 +55,29 @@ export interface ContextoSala {
   onVoltar: () => void;
 }
 
+/** Mostra há quanto tempo a espera dura e explica quando passa do normal. */
+function Cronometro() {
+  const [inicio] = useState(() => Date.now());
+  const [agora, setAgora] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setAgora(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const seg = Math.floor((agora - inicio) / 1000);
+  const texto = seg < 60 ? `${seg} s` : `${Math.floor(seg / 60)} min ${String(seg % 60).padStart(2, '0')} s`;
+  return (
+    <div className="cronometro muted">
+      <p>Tempo de espera: {texto}</p>
+      {seg >= 90 && (
+        <p>
+          Está demorando mais que o normal. PDFs grandes, vídeos e áudios longos podem levar alguns minutos. Se o Google não responder, aparece
+          um aviso com o motivo em até 8 minutos. Você pode deixar esta tela aberta.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function App({ podeSair = false, contexto }: { podeSair?: boolean; contexto?: ContextoSala }) {
   // ------------------------------------------------------------------ material
   const [material, setMaterial] = useState<Material | null>(null);
@@ -127,6 +150,33 @@ export default function App({ podeSair = false, contexto }: { podeSair?: boolean
     [registrar]
   );
 
+  // ------------------------------------------------------------------ análise resistente a quedas de conexão
+  /**
+   * Pede a análise. Na sala, se a conexão cair no meio (proxy, rede), o servidor
+   * continua trabalhando e salva o resultado: então esperamos por ele.
+   */
+  const analisar = async (docId: string, epoch: number): Promise<Analise> => {
+    try {
+      return (await postJson<{ analise: Analise }>('/api/analyze', { docId })).analise;
+    } catch (e) {
+      const queda = e instanceof ApiError && (e.status === 0 || e.erro.tipo === 'conexao' || e.erro.tipo === 'rede');
+      const [sid, mid] = docId.split(':');
+      if (!contexto || !queda || !sid || !mid) throw e;
+      const limite = Date.now() + 10 * 60 * 1000;
+      while (Date.now() < limite && epoch === epochRef.current) {
+        setCarregando('A conexão caiu, mas o servidor continua analisando. Aguardando o resultado…');
+        await new Promise((r) => setTimeout(r, 5000));
+        try {
+          const r = await getJson<{ analise: Analise | null }>(`/api/salas/${sid}/materiais/${mid}`);
+          if (r.analise) return r.analise;
+        } catch {
+          /* tenta de novo */
+        }
+      }
+      throw e;
+    }
+  };
+
   // ------------------------------------------------------------------ início
   const ultimoMaterial = useRef<Material | null>(null);
   const comecar = useCallback(
@@ -159,11 +209,11 @@ export default function App({ podeSair = false, contexto }: { podeSair?: boolean
         setCarregando(
           `Analisando o conteúdo com ${IS_ARTIFACT ? 'o Claude' : 'o Gemini'}${mat.midia === 'audio' ? ' (ouvindo o áudio)' : mat.midia === 'video' ? ' (assistindo ao vídeo)' : mat.midia === 'imagem' ? ' (lendo a imagem)' : ' (texto e figuras)'}… isso pode levar alguns segundos.`
         );
-        const r = await withDocFor(mat, (docId) => postJson<{ analise: Analise }>('/api/analyze', { docId }));
+        const analiseNova = await withDocFor(mat, (docId) => analisar(docId, epoch));
         if (epoch !== epochRef.current) return;
         setMaterial(mat);
-        setAnalise(r.analise);
-        setConceitoId(r.analise.conceitos[0].id);
+        setAnalise(analiseNova);
+        setConceitoId(analiseNova.conceitos[0].id);
       } catch (e) {
         if (epoch === epochRef.current) setErroInicio(toErro(e));
       } finally {
@@ -643,7 +693,7 @@ export default function App({ podeSair = false, contexto }: { podeSair?: boolean
       let an = r.analise;
       if (!an) {
         setCarregando(`Analisando o conteúdo com ${IS_ARTIFACT ? 'o Claude' : 'o Gemini'}… isso pode levar alguns segundos.`);
-        an = (await postJson<{ analise: Analise }>('/api/analyze', { docId: r.docId })).analise;
+        an = await analisar(r.docId, epoch);
       }
       const e = an === r.analise ? r.estado : null;
       // infográfico guardado: busca as imagens
@@ -712,9 +762,12 @@ export default function App({ podeSair = false, contexto }: { podeSair?: boolean
           ← Voltar à sala {contexto.sala.nome}
         </button>
         {carregando && (
-          <p className="loading-line" aria-live="polite">
-            <span className="spinner" /> {carregando}
-          </p>
+          <>
+            <p className="loading-line" aria-live="polite">
+              <span className="spinner" /> {carregando}
+            </p>
+            <Cronometro />
+          </>
         )}
         {erroInicio && !carregando && <ErrorBox erro={erroInicio} onRetry={tentarDeNovo} />}
       </main>

@@ -40,6 +40,11 @@ async function requisicao<T>(url: string, init: RequestInit = {}): Promise<T> {
   }
   if (!res.ok) {
     if (res.status === 401 && body?.erro?.tipo === 'login') window.dispatchEvent(new Event(EVENTO_LOGIN));
+    if (!body?.erro && [502, 503, 504, 524].includes(res.status))
+      throw new ApiError(
+        { tipo: 'conexao', mensagem: 'A conexão com o servidor foi interrompida enquanto ele trabalhava.', comoResolver: 'Espere um pouco e tente de novo.' },
+        res.status
+      );
     throw new ApiError(body?.erro || { tipo: 'desconhecido', mensagem: `Erro ${res.status} no servidor.` }, res.status);
   }
   return body as T;

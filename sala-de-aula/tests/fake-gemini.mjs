@@ -10,7 +10,7 @@ import { Resvg } from '@resvg/resvg-js';
 const PORT = Number(process.argv[2] || 8787);
 const log = []; // registro de tudo o que o app enviou
 const fx = (n) => JSON.parse(readFileSync(new URL(`./fixtures/${n}.json`, import.meta.url), 'utf8'));
-const opts = { imageError: process.env.FAKE_IMAGE_ERROR || '', falhas503: 0, quebrado: '' };
+const opts = { imageError: process.env.FAKE_IMAGE_ERROR || '', falhas503: 0, quebrado: '', lento: '', atraso: 0 };
 
 const ANALISE_ECLIPSE = {
   analisavel: true,
@@ -184,6 +184,15 @@ const server = http.createServer((req, res) => {
       if (!m[1].includes('image') && Number(opts.falhas503) > 0) {
         opts.falhas503 = Number(opts.falhas503) - 1;
         return send(503, { error: { code: 503, message: 'The model is overloaded. Please try again later.', status: 'UNAVAILABLE' } });
+      }
+      // Simula um modelo que demora (ou não responde) e uma análise lenta em geral.
+      if (opts.lento && opts.lento === m[1]) return; // nunca responde
+      if (Number(opts.atraso) > 0 && /Analise o material/.test(textOf(body))) {
+        setTimeout(() => {
+          const r = handleGenerate(m[1], body);
+          send(r.status || 200, r.body);
+        }, Number(opts.atraso));
+        return;
       }
       const r = handleGenerate(m[1], body);
       return send(r.status || 200, r.body);

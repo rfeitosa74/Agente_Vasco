@@ -164,6 +164,8 @@ export function toAppError(e, acao = 'falar com o Gemini') {
     return new AppError('regiao', 'Este recurso não está disponível na sua região.', '', det, 400);
   if (status === 413 || m.includes('too large') || m.includes('payload size'))
     return new AppError('tamanho', 'O arquivo é grande demais para ser analisado.', 'Tente um PDF menor (até 20 MB) ou divida o material.', det, 413);
+  if (/abort|timed? ?out|timeout|deadline/.test(m) && !status)
+    return new AppError('tempo', `O Gemini demorou demais para ${acao}.`, 'Tente de novo. Se o material for muito grande (vídeo longo, PDF com muitas páginas), envie uma parte menor.', det, 504);
   if (status >= 500)
     return new AppError('servico', 'O serviço do Gemini está instável no momento.', 'Espere um ou dois minutos e tente novamente. Se continuar, abra o detalhe técnico e me mande o texto.', det, 502);
   if (m.includes('fetch failed') || m.includes('enotfound') || m.includes('econnrefused') || m.includes('network'))
@@ -198,6 +200,12 @@ export function falhaPassageira(e) {
   return st >= 500 || st === 408 || /overloaded|unavailable|internal error|deadline|timed? ?out|fetch failed|econnreset|socket hang up|etimedout|resposta vazia|json inválido/.test(m);
 }
 const ESPERA_BASE = Number(process.env.GEMINI_ESPERA_MS || 1500);
+// Tempo máximo de cada chamada (o SDK não tem limite por padrão) e da operação inteira.
+const LIMITE_TEXTO_MS = Number(process.env.GEMINI_LIMITE_TEXTO_MS || 150000);
+const LIMITE_IMAGEM_MS = Number(process.env.GEMINI_LIMITE_IMAGEM_MS || 240000);
+const ORCAMENTO_MS = Number(process.env.GEMINI_ORCAMENTO_MS || 7 * 60 * 1000);
+/** Tempo esgotado numa chamada: repetir o mesmo pedido pesado não ajuda. */
+const tempoEsgotado = (e) => /abort|timed? ?out|timeout|deadline/i.test(`${e?.name || ''} ${e?.message || ''}`);
 
 /** Repete a chamada em falhas passageiras, esperando cada vez mais. */
 export async function comRetentativas(fn, tentativas = 3) {
@@ -205,7 +213,7 @@ export async function comRetentativas(fn, tentativas = 3) {
     try {
       return await fn(i);
     } catch (e) {
-      if (!falhaPassageira(e) || i >= tentativas - 1) throw e;
+      if (!falhaPassageira(e) || tempoEsgotado(e) || i >= tentativas - 1) throw e;
       const ms = ESPERA_BASE * Math.pow(2.5, i) + Math.random() * 400;
       console.warn(`[gemini] falha passageira (${e?.status || ''} ${String(e?.message || e).slice(0, 120)}); nova tentativa em ${Math.round(ms)} ms`);
       await espera(ms);
@@ -228,21 +236,31 @@ async function modelosDeTexto() {
 async function comModelosDeTexto(acao, fn, modeloFixo) {
   const modelos = modeloFixo ? [modeloFixo] : await modelosDeTexto();
   const falhas = [];
+  const inicio = Date.now();
   for (const modelo of modelos) {
+    if (Date.now() - inicio > ORCAMENTO_MS - LIMITE_TEXTO_MS) {
+      falhas.push(`${modelo}: não tentado (tempo total esgotado)`);
+      break;
+    }
     try {
-      return await comRetentativas((i) => fn(modelo, i));
+      const t0 = Date.now();
+      const r = await comRetentativas((i) => fn(modelo, i));
+      console.log(`[gemini] ${acao}: ${modelo} respondeu em ${Math.round((Date.now() - t0) / 1000)} s`);
+      return r;
     } catch (e) {
       if (e instanceof AppError && !falhaPassageira(e)) throw e;
       const st = Number(e?.status) || 0;
-      if (!falhaPassageira(e) && st !== 404) throw toAppError(e, acao);
-      falhas.push(`${modelo}: ${st || ''} ${String(e?.message || e).slice(0, 200)}`);
+      if (!falhaPassageira(e) && !tempoEsgotado(e) && st !== 404) throw toAppError(e, acao);
+      falhas.push(`${modelo}: ${tempoEsgotado(e) ? `sem resposta em ${Math.round(LIMITE_TEXTO_MS / 1000)} s` : `${st || ''} ${String(e?.message || e).slice(0, 200)}`}`);
       modelosComProblema.set(modelo, Date.now() + 5 * 60 * 1000);
       console.warn(`[gemini] ${modelo} falhou ao ${acao}; ${modelos.indexOf(modelo) < modelos.length - 1 ? 'tentando outro modelo' : 'sem outros modelos'}`);
     }
   }
   throw new AppError(
     'servico',
-    `O Gemini não conseguiu ${acao} agora, mesmo depois de várias tentativas${modelos.length > 1 ? ` com ${modelos.length} modelos diferentes` : ''}.`,
+    falhas.every((f) => /sem resposta|tempo total/.test(f))
+      ? `O Gemini demorou demais para ${acao}.`
+      : `O Gemini não conseguiu ${acao} agora, mesmo depois de várias tentativas${modelos.length > 1 ? ` com ${modelos.length} modelos diferentes` : ''}.`,
     'Espere um ou dois minutos e clique em "Tentar novamente". Se continuar, abra o detalhe técnico e me mande o texto.',
     falhas.join('\n'),
     502
@@ -270,6 +288,7 @@ export async function generateJson({ parts, schema, system, temperature = 0.4, a
         },
       ],
       config: {
+        httpOptions: { timeout: LIMITE_TEXTO_MS },
         systemInstruction: system,
         temperature,
         responseMimeType: 'application/json',
@@ -303,7 +322,7 @@ export async function generateJson({ parts, schema, system, temperature = 0.4, a
 /** Gera texto simples. */
 export async function generateText({ parts, system, temperature = 0.2, acao }) {
   return comModelosDeTexto(acao, async (modelo) => {
-    const resp = await ai().models.generateContent({ model: modelo, contents: [{ role: 'user', parts }], config: { systemInstruction: system, temperature } });
+    const resp = await ai().models.generateContent({ model: modelo, contents: [{ role: 'user', parts }], config: { httpOptions: { timeout: LIMITE_TEXTO_MS }, systemInstruction: system, temperature } });
     if (!resp.text) throw respostaVazia(resp, acao);
     return { text: resp.text, modelo: resp.modelVersion || modelo };
   });
@@ -316,7 +335,7 @@ export async function generateImage({ parts }) {
     ai().models.generateContent({
       model: modelo,
       contents: [{ role: 'user', parts }],
-      config: { responseModalities: ['TEXT', 'IMAGE'], imageConfig },
+      config: { httpOptions: { timeout: LIMITE_IMAGEM_MS }, responseModalities: ['TEXT', 'IMAGE'], imageConfig },
     });
   let resp;
   let configUsada = { aspectRatio: '16:9', imageSize: '2K' };
