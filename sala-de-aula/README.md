@@ -16,6 +16,10 @@ Tudo em português do Brasil, pensado para um aluno do fim do 6º ano.
 
 ## 2. Instalar e rodar
 
+**No Windows, siga o [passo a passo sem comandos](PASSO-A-PASSO-WINDOWS.md)**: basta dar dois cliques em `INICIAR-SALA-DE-AULA.bat`.
+
+Pelo terminal (qualquer sistema):
+
 ```bash
 cd sala-de-aula
 npm install

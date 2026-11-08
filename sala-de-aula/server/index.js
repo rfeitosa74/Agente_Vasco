@@ -30,7 +30,8 @@ const ROOT = path.resolve(__dirname, '..');
 const PORT = Number(process.env.PORT || 5173);
 const HOST = process.env.HOST || '127.0.0.1';
 const ACCESS_CODE = process.env.ACCESS_CODE || '';
-const isProd = process.env.NODE_ENV === 'production';
+const isProd = process.env.NODE_ENV === 'production' || process.argv.includes('--producao');
+const abrirNavegador = process.argv.includes('--abrir');
 
 const app = express();
 app.use(express.json({ limit: '40mb' }));
@@ -512,9 +513,21 @@ if (isProd) {
   app.use(vite.middlewares);
 }
 
-app.listen(PORT, HOST, () => {
-  console.log(`\nMinha sala de aula: http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
+const server = app.listen(PORT, HOST, async () => {
+  const url = `http://${HOST === '0.0.0.0' || HOST === '127.0.0.1' ? 'localhost' : HOST}:${PORT}`;
+  console.log(`\nMinha sala de aula: ${url}`);
+  console.log('Deixe esta janela aberta enquanto o Luan estuda. Para desligar, feche a janela.');
+  if (abrirNavegador) {
+    const { exec } = await import('node:child_process');
+    const cmd = process.platform === 'win32' ? `start "" "${url}"` : process.platform === 'darwin' ? `open "${url}"` : `xdg-open "${url}"`;
+    exec(cmd, () => {});
+  }
   if (!hasKey()) console.log('ATENÇÃO: GEMINI_API_KEY não definida. Crie o arquivo .env (veja .env.example).');
   if (HOST !== '127.0.0.1' && HOST !== 'localhost' && !ACCESS_CODE)
     console.log('ATENÇÃO: o servidor está visível na rede sem ACCESS_CODE. Qualquer pessoa na rede poderá usar sua chave.');
+});
+server.on('error', (e) => {
+  if (e.code === 'EADDRINUSE') console.error(`\nA porta ${PORT} já está em uso: a sala de aula provavelmente já está aberta em outra janela. Feche a outra janela ou abra http://localhost:${PORT} no navegador.`);
+  else console.error(e);
+  process.exitCode = 1;
 });
