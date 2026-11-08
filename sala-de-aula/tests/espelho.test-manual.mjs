@@ -64,6 +64,8 @@ srv.p.kill();
 await new Promise((r) => setTimeout(r, 500));
 fs.rmSync(DISCO, { recursive: true, force: true });
 fs.mkdirSync(DISCO);
+// Dados "velhos" no disco local (como uma cópia do ambiente de desenvolvimento) não podem vencer o armazenamento
+fs.writeFileSync(path.join(DISCO, 'usuarios.json'), '[]');
 srv = await iniciar();
 assert.match(srv.log(), /arquivo\(s\) de dados restaurado/);
 ok('servidor reiniciado com o disco vazio e dados restaurados do armazenamento');

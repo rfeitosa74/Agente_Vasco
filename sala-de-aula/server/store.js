@@ -28,6 +28,10 @@ export async function iniciarArmazenamento() {
   }
   try {
     await espelho.testar();
+    // O armazenamento permanente é a fonte da verdade: dados locais (por exemplo,
+    // copiados do ambiente de desenvolvimento para a publicação) são descartados.
+    for (const item of fs.readdirSync(DATA_DIR)) fs.rmSync(path.join(DATA_DIR, item), { recursive: true, force: true });
+    fs.mkdirSync(path.join(DATA_DIR, 'salas'), { recursive: true });
     const n = await espelho.restaurar();
     console.log(`[armazenamento] ${espelho.estado.destino}: ${n} arquivo(s) de dados restaurado(s).`);
   } catch (e) {
