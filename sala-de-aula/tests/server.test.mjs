@@ -54,3 +54,15 @@ test('erros da API viram mensagens específicas', () => {
   assert.equal(toAppError(e(403, 'PERMISSION_DENIED')).tipo, 'permissao');
   assert.equal(toAppError(e(503, 'overloaded')).tipo, 'servico');
 });
+
+test('a chave é limpa ao colar e o diagnóstico não revela o valor', async () => {
+  const { limparChave, diagnosticoChave } = await import('../server/gemini.js');
+  const k = 'AIza' + 'x'.repeat(35);
+  assert.equal(limparChave(`  "${k}"\n`), k);
+  assert.equal(limparChave(`GEMINI_API_KEY=${k}`), k);
+  assert.equal(limparChave(`GEMINI_API_KEY = '${k}'`), k);
+  assert.match(diagnosticoChave('sk-proj-abc'), /OpenAI/);
+  assert.match(diagnosticoChave(k.slice(0, 30)), /30 caracteres/);
+  assert.match(diagnosticoChave(k), /parece correto/);
+  assert.ok(!diagnosticoChave(k).includes(k.slice(4)), 'não mostra a chave');
+});

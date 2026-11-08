@@ -1,7 +1,30 @@
 // Acesso à API Gemini (somente no servidor: a chave nunca vai para o navegador).
 import { GoogleGenAI } from '@google/genai';
 
-const API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
+/** Remove o que costuma vir junto ao colar a chave: espaços, quebras de linha, aspas, "GEMINI_API_KEY=". */
+export function limparChave(bruta) {
+  let k = String(bruta || '').trim();
+  k = k.replace(/^(export\s+)?(GEMINI_API_KEY|GOOGLE_API_KEY)\s*[=:]\s*/i, '');
+  k = k.replace(/^["'`]+|["'`]+$/g, '');
+  return k.replace(/\s+/g, '');
+}
+const API_KEY = limparChave(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '');
+
+/** Onde a chave é configurada, conforme a plataforma. */
+const ONDE_CHAVE = process.env.REPL_ID || process.env.REPLIT_DEPLOYMENT
+  ? 'no Replit, em Secrets (GEMINI_API_KEY), e depois publique de novo'
+  : process.env.RENDER
+  ? 'no Render, em Environment (GEMINI_API_KEY)'
+  : 'no arquivo .env (GEMINI_API_KEY) e reinicie o servidor';
+
+/** Descreve o formato da chave sem revelá-la. */
+export function diagnosticoChave(k = API_KEY) {
+  if (!k) return 'nenhuma chave configurada';
+  if (/^sk-/.test(k)) return 'a chave começa com "sk-": parece ser uma chave da OpenAI, não do Gemini';
+  if (!/^AIza/.test(k)) return `a chave não começa com "AIza" como as chaves do Gemini (tem ${k.length} caracteres)`;
+  if (k.length !== 39) return `a chave começa com "AIza", mas tem ${k.length} caracteres (o normal são 39): pode ter sido copiada pela metade ou com algo a mais`;
+  return 'o formato da chave parece correto (começa com "AIza" e tem 39 caracteres): ela pode ter sido apagada, restrita ou criada num projeto sem acesso à API Gemini';
+}
 
 let client = null;
 export function hasKey() {
@@ -12,7 +35,7 @@ export function ai() {
     throw new AppError(
       'configuracao',
       'A chave da API Gemini não está configurada no servidor.',
-      'Crie o arquivo .env com GEMINI_API_KEY=... (veja o README) e reinicie o servidor.'
+      `Configure a chave ${ONDE_CHAVE}.`
     );
   }
   if (!client) {
@@ -122,7 +145,13 @@ export function toAppError(e, acao = 'falar com o Gemini') {
   const m = msg.toLowerCase();
   const det = msg.slice(0, 600);
   if (m.includes('api key not valid') || m.includes('api_key_invalid') || m.includes('api key expired'))
-    return new AppError('chave', 'A chave da API Gemini foi recusada (inválida ou expirada).', 'Gere uma nova chave em aistudio.google.com/apikey e atualize GEMINI_API_KEY no .env.', det, 401);
+    return new AppError(
+      'chave',
+      'O Google recusou a chave da API Gemini (inválida, apagada ou expirada).',
+      `Verificação: ${diagnosticoChave()}. Copie a chave de novo em aistudio.google.com/apikey (ou crie uma nova) e cole ${ONDE_CHAVE}.`,
+      det,
+      401
+    );
   if (m.includes('billing') || m.includes('free tier') || (m.includes('only available') && m.includes('paid')))
     return new AppError('faturamento', 'Este recurso exige faturamento ativado no projeto da chave.', 'No Google AI Studio, abra o projeto da chave e ative o faturamento (plano pago) em "Billing". Depois tente novamente.', det, 402);
   if (status === 429 || m.includes('resource_exhausted') || m.includes('quota'))
