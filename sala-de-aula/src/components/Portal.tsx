@@ -28,31 +28,53 @@ async function sair() {
   await postJson('/api/logout', {}).catch(() => {});
 }
 
-function AvisoArmazenamento({ pasta }: { pasta: string }) {
+interface SituacaoArmazenamento {
+  persistente: boolean;
+  pasta: string;
+  plataforma?: string;
+  motivo?: string;
+}
+
+function AvisoArmazenamento({ sit }: { sit: SituacaoArmazenamento }) {
   return (
     <div className="aviso-dados" role="alert">
       <strong>Atenção: os dados deste site não estão sendo guardados de forma permanente.</strong>
-      <p>
-        Usuários, salas e materiais ficam numa pasta temporária ({pasta}) e são apagados sempre que o site reinicia ou é
-        atualizado. Para corrigir, no painel do Render abra o serviço <b>minha-sala-de-aula</b> e:
-      </p>
-      <ol>
-        <li>
-          em <b>Settings → Instance Type</b>, escolha <b>Starter</b> (discos não existem no plano grátis);
-        </li>
-        <li>
-          em <b>Disks</b> (ou <b>Settings → Disk</b>), clique em <b>Add Disk</b>: nome <code>dados</code>, <i>Mount Path</i> <code>/var/data</code>, 1 GB;
-        </li>
-        <li>
-          em <b>Environment</b>, confira se existe <code>DATA_DIR</code> com o valor <code>/var/data</code> (crie se não existir) e salve.
-        </li>
-      </ol>
-      <p>Depois que o site reiniciar, este aviso some. Os usuários criados antes disso precisam ser criados de novo.</p>
+      <p>Usuários, salas e materiais podem ser apagados quando o site reinicia ou é publicado de novo.</p>
+      {sit.plataforma === 'replit' ? (
+        <>
+          <p>Para corrigir, no seu app no Replit:</p>
+          <ol>
+            <li>
+              abra a ferramenta <b>Object Storage</b> (no painel de ferramentas, ou procure por “Object Storage”) e clique em <b>Create new bucket</b>;
+            </li>
+            <li>
+              clique em <b>Publish</b> (ou <b>Republish</b>) para publicar de novo.
+            </li>
+          </ol>
+        </>
+      ) : (
+        <>
+          <p>Para corrigir, no painel do Render, abra o serviço <b>minha-sala-de-aula</b> e:</p>
+          <ol>
+            <li>
+              em <b>Settings → Instance Type</b>, escolha <b>Starter</b> (discos não existem no plano grátis);
+            </li>
+            <li>
+              em <b>Disks</b>, clique em <b>Add Disk</b>: nome <code>dados</code>, <i>Mount Path</i> <code>/var/data</code>, 1 GB;
+            </li>
+            <li>
+              em <b>Environment</b>, crie <code>DATA_DIR</code> com o valor <code>/var/data</code> e salve.
+            </li>
+          </ol>
+        </>
+      )}
+      {sit.motivo && <p className="muted">Detalhe: {sit.motivo}</p>}
+      <p>Depois que o site reiniciar, este aviso some.</p>
     </div>
   );
 }
 
-export function Portal({ usuario, onSair, armazenamento }: { usuario: Usuario; onSair: () => void; armazenamento?: { persistente: boolean; pasta: string } }) {
+export function Portal({ usuario, onSair, armazenamento }: { usuario: Usuario; onSair: () => void; armazenamento?: SituacaoArmazenamento }) {
   const [tela, setTela] = useState<Tela>({ t: 'salas' });
   const irSala = async (sala: Sala) => {
     try {
@@ -95,7 +117,7 @@ export function Portal({ usuario, onSair, armazenamento }: { usuario: Usuario; o
           </button>
         </nav>
       </header>
-      {usuario.admin && armazenamento && !armazenamento.persistente && <AvisoArmazenamento pasta={armazenamento.pasta} />}
+      {usuario.admin && armazenamento && !armazenamento.persistente && <AvisoArmazenamento sit={armazenamento} />}
       {tela.t === 'salas' && <SalasScreen usuario={usuario} onAbrir={irSala} />}
       {tela.t === 'sala' && (
         <SalaScreen

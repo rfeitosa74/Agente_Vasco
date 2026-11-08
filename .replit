@@ -1,0 +1,17 @@
+# Replit — "Minha sala de aula" (o app fica na pasta sala-de-aula)
+modules = ["nodejs-20"]
+run = "cd sala-de-aula && npm install && npm run build && node server/index.js --producao"
+
+[env]
+PORT = "5173"
+
+[[ports]]
+localPort = 5173
+externalPort = 80
+
+# Publicação: "Reserved VM" (sempre ligada, uma única máquina).
+# Os dados ficam no Object Storage do Replit (crie um bucket no painel Object Storage).
+[deployment]
+deploymentTarget = "vm"
+build = ["sh", "-c", "cd sala-de-aula && npm ci --include=dev && npm run build"]
+run = ["sh", "-c", "cd sala-de-aula && node server/index.js --producao"]

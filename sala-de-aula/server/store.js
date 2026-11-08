@@ -10,10 +10,42 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { criarEspelho } from './espelho.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const DATA_DIR = path.resolve(process.env.DATA_DIR || path.join(ROOT, 'dados'));
 fs.mkdirSync(path.join(DATA_DIR, 'salas'), { recursive: true });
+
+// ---------------------------------------------------------------------------
+// Espelho permanente (Replit Object Storage): ver espelho.js
+// ---------------------------------------------------------------------------
+let espelho = null;
+export async function iniciarArmazenamento() {
+  espelho = await criarEspelho(DATA_DIR);
+  if (!espelho || espelho.ativo === false) {
+    if (espelho?.erro) console.error('[armazenamento]', espelho.erro);
+    return;
+  }
+  try {
+    await espelho.testar();
+    const n = await espelho.restaurar();
+    console.log(`[armazenamento] ${espelho.estado.destino}: ${n} arquivo(s) de dados restaurado(s).`);
+  } catch (e) {
+    espelho.estado.erro = e.message;
+    console.error('[armazenamento] o armazenamento permanente não está funcionando:', e.message);
+  }
+}
+const espelhar = (abs) => espelho?.enviar?.(abs);
+const apagarEspelho = (abs) => espelho?.apagar?.(abs);
+/** Espera as cópias para o armazenamento permanente terminarem. */
+export async function aguardarEspelho() {
+  await espelho?.aguardar?.();
+}
+/** Garante que um arquivo grande (original, infográfico) esteja na pasta local. */
+export async function garantirArquivo(abs) {
+  if (fs.existsSync(abs)) return true;
+  return espelho?.garantir ? espelho.garantir(abs) : false;
+}
 
 const ID_OK = /^[a-zA-Z0-9-]{8,64}$/;
 export const novoId = () => crypto.randomUUID();
@@ -35,6 +67,7 @@ function gravarJson(arquivo, dados) {
   const tmp = `${arquivo}.${process.pid}.${Date.now()}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(dados));
   fs.renameSync(tmp, arquivo);
+  espelhar(arquivo);
 }
 
 // ---------------------------------------------------------------------------
@@ -43,7 +76,10 @@ function gravarJson(arquivo, dados) {
 export function segredoSessao() {
   if (process.env.SESSION_SECRET) return Buffer.from(process.env.SESSION_SECRET);
   const arq = path.join(DATA_DIR, 'segredo.txt');
-  if (!fs.existsSync(arq)) fs.writeFileSync(arq, crypto.randomBytes(48).toString('base64'), { mode: 0o600 });
+  if (!fs.existsSync(arq)) {
+    fs.writeFileSync(arq, crypto.randomBytes(48).toString('base64'), { mode: 0o600 });
+    espelhar(arq);
+  }
   return Buffer.from(fs.readFileSync(arq, 'utf8').trim());
 }
 
@@ -122,6 +158,7 @@ export function removerUsuario(id) {
   if (u.admin && todos.filter((x) => x.admin).length === 1) throw Object.assign(new Error('Não é possível remover o único administrador.'), { status: 400, paraUsuario: true });
   gravarUsuarios(todos.filter((x) => x.id !== id));
   fs.rmSync(path.join(DATA_DIR, 'salas', checarId(id)), { recursive: true, force: true });
+  apagarEspelho(path.join(DATA_DIR, 'salas', checarId(id)));
 }
 
 // ---------------------------------------------------------------------------
@@ -177,6 +214,7 @@ export function alterarSala(uid, sid, d) {
 export function removerSala(uid, sid) {
   lerSala(uid, sid);
   fs.rmSync(dirSala(uid, sid), { recursive: true, force: true });
+  apagarEspelho(dirSala(uid, sid));
 }
 
 function tocarSala(uid, sid, mudar) {
@@ -200,7 +238,10 @@ export function criarMaterial(uid, sid, meta, conteudo) {
   const agora = new Date().toISOString();
   const m = { ...meta, id, criadoEm: agora, atualizadoEm: agora };
   fs.mkdirSync(dirMateriais(uid, sid), { recursive: true });
-  if (Buffer.isBuffer(conteudo)) fs.writeFileSync(arqOriginal(uid, sid, id), conteudo);
+  if (Buffer.isBuffer(conteudo)) {
+    fs.writeFileSync(arqOriginal(uid, sid, id), conteudo);
+    espelhar(arqOriginal(uid, sid, id));
+  }
   else m.texto = String(conteudo || '');
   gravarJson(arqMaterial(uid, sid, id), { meta: m, analise: null, estado: null });
   tocarSala(uid, sid, (s) => s.materiais.push(resumoMaterial(m, null)));
@@ -260,6 +301,7 @@ export function removerMaterial(uid, sid, mid) {
   lerMaterial(uid, sid, mid);
   const dir = dirMateriais(uid, sid);
   for (const f of fs.readdirSync(dir)) if (f.startsWith(mid)) fs.rmSync(path.join(dir, f), { force: true });
+  apagarEspelho(path.join(dir, mid));
   tocarSala(uid, sid, (s) => (s.materiais = s.materiais.filter((x) => x.id !== mid)));
 }
 
@@ -268,13 +310,20 @@ export function salvarImagem(uid, sid, mid, { mimeType, data }) {
   lerMaterial(uid, sid, mid);
   const id = novoId();
   const ext = mimeType.includes('svg') ? 'svg' : mimeType.includes('jpeg') ? 'jpg' : mimeType.includes('webp') ? 'webp' : 'png';
-  fs.writeFileSync(path.join(dirMateriais(uid, sid), `${mid}-img-${id}.${ext}`), Buffer.from(data, 'base64'));
+  const arq = path.join(dirMateriais(uid, sid), `${mid}-img-${id}.${ext}`);
+  fs.writeFileSync(arq, Buffer.from(data, 'base64'));
+  espelhar(arq);
   return id;
 }
-export function lerImagem(uid, sid, mid, iid) {
+export async function lerImagem(uid, sid, mid, iid) {
   const dir = dirMateriais(uid, sid);
   const prefixo = `${checarId(mid)}-img-${checarId(iid)}.`;
-  const f = fs.existsSync(dir) ? fs.readdirSync(dir).find((x) => x.startsWith(prefixo)) : null;
+  let f = fs.existsSync(dir) ? fs.readdirSync(dir).find((x) => x.startsWith(prefixo)) : null;
+  if (!f && espelho?.procurar) {
+    // Máquina nova: busca a imagem no armazenamento permanente
+    const [remoto] = await espelho.procurar(path.join(dir, prefixo));
+    if (remoto && (await espelho.garantir(remoto))) f = path.basename(remoto);
+  }
   if (!f) throw Object.assign(new Error('Imagem não encontrada.'), { status: 404, paraUsuario: true });
   const ext = f.split('.').pop();
   const mimeType = { svg: 'image/svg+xml', jpg: 'image/jpeg', webp: 'image/webp', png: 'image/png' }[ext] || 'image/png';
@@ -288,11 +337,15 @@ export function lerImagem(uid, sid, mid, iid) {
  */
 export function situacaoArmazenamento() {
   const pasta = DATA_DIR;
+  if (espelho || process.env.REPL_ID || process.env.REPLIT_DEPLOYMENT) {
+    const motivo = !espelho ? 'ARMAZENAMENTO=local' : espelho.ativo === false ? espelho.erro : espelho.estado?.erro || '';
+    return { persistente: !motivo, pasta, verificado: true, plataforma: process.env.REPL_ID || process.env.REPLIT_DEPLOYMENT ? 'replit' : 'espelho', onde: espelho?.estado?.destino || '', motivo };
+  }
   if (!process.env.RENDER) return { persistente: true, pasta, verificado: false };
   try {
     const persistente = fs.statSync(pasta).dev !== fs.statSync('/').dev;
-    return { persistente, pasta, verificado: true };
+    return { persistente, pasta, verificado: true, plataforma: 'render' };
   } catch {
-    return { persistente: false, pasta, verificado: true };
+    return { persistente: false, pasta, verificado: true, plataforma: 'render' };
   }
 }

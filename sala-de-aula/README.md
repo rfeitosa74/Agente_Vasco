@@ -16,7 +16,7 @@ Tudo em português do Brasil, pensado para um aluno do fim do 6º ano.
 
 ## 2. Instalar e rodar
 
-**Para publicar na internet com senha, siga [PUBLICAR-NA-INTERNET.md](PUBLICAR-NA-INTERNET.md)** (Render; você só cola a chave e a senha num formulário).
+**Para publicar na internet, siga [PUBLICAR-NO-REPLIT.md](PUBLICAR-NO-REPLIT.md)** (Replit: site sempre ligado e dados no Object Storage). A alternativa no Render está em [PUBLICAR-NA-INTERNET.md](PUBLICAR-NA-INTERNET.md) (exige plano Starter com disco).
 
 **No Windows, siga o [passo a passo sem comandos](PASSO-A-PASSO-WINDOWS.md)**: basta dar dois cliques em `INICIAR-SALA-DE-AULA.bat`.
 
@@ -69,7 +69,8 @@ legenda da imagem mostra o modelo que realmente respondeu e o tamanho real em pi
 - **Primeiro administrador**: no computador local, criado na primeira tela; na internet, criado no início do servidor
   com o usuário `admin` (ou `ADMIN_USER`) e a senha `APP_PASSWORD`. Sem usuários e sem `APP_PASSWORD`, o site na
   internet fica bloqueado.
-- Os dados ficam em `DATA_DIR` (padrão: pasta `dados`; no Render, o disco `/var/data`). Senhas são guardadas com
+- Os dados ficam em `DATA_DIR` (padrão: pasta `dados`; no Render, o disco `/var/data`). No Replit, cada gravação é
+  copiada para o Object Storage e restaurada quando o servidor começa numa máquina nova (`server/espelho.js`). Senhas são guardadas com
   hash scrypt; sessões em cookie assinado de 30 dias, encerradas quando a senha muda.
 - A versão em **artefato do Claude** continua de uma pessoa só (a conta do Claude de quem abre) e não guarda salas.
 

@@ -10,7 +10,7 @@ interface Sessao {
   usuario: Usuario | null;
   precisaConfigurar: boolean;
   configuracaoPendente: boolean;
-  armazenamento?: { persistente: boolean; pasta: string; verificado: boolean };
+  armazenamento?: { persistente: boolean; pasta: string; verificado: boolean; plataforma?: string; motivo?: string };
 }
 
 /** Login (ou primeiro acesso) e depois as salas do usuário. */

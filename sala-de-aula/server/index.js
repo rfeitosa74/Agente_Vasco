@@ -32,7 +32,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const PORT = Number(process.env.PORT || 5173);
 // Na nuvem (Render) o servidor precisa ouvir em todas as interfaces.
-const NA_NUVEM = !!process.env.RENDER;
+const NA_NUVEM = !!(process.env.RENDER || process.env.REPL_ID || process.env.REPLIT_DEPLOYMENT);
 const HOST = process.env.HOST || (NA_NUVEM ? '0.0.0.0' : '127.0.0.1');
 const SENHA = process.env.APP_PASSWORD || process.env.ACCESS_CODE || '';
 const SO_LOCAL = HOST === '127.0.0.1' || HOST === 'localhost';
@@ -42,6 +42,17 @@ const abrirNavegador = process.argv.includes('--abrir');
 const app = express();
 app.set('trust proxy', 1); // HTTPS termina no proxy do Render
 app.use(express.json({ limit: '40mb' }));
+// Só responde depois que as gravações chegarem ao armazenamento permanente.
+app.use('/api', (_req, res, next) => {
+  const json = res.json.bind(res);
+  res.json = (corpo) => {
+    S.aguardarEspelho()
+      .catch(() => {})
+      .finally(() => json(corpo));
+    return res;
+  };
+  next();
+});
 const LIMITE_MIDIA_MB = Number(process.env.LIMITE_MIDIA_MB || 100);
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: LIMITE_MIDIA_MB * 1024 * 1024 } });
 
@@ -82,6 +93,7 @@ function tipoDeMidia(mime, nomeArquivo) {
 // ---------------------------------------------------------------------------
 const COOKIE = 'sala_sessao';
 const DURACAO_SESSAO = 30 * 24 * 60 * 60 * 1000; // 30 dias
+await S.iniciarArmazenamento(); // restaura os dados do armazenamento permanente, se houver
 const SEGREDO_SESSAO = S.segredoSessao();
 const ADMIN_USUARIO = process.env.ADMIN_USER || 'admin';
 
@@ -289,6 +301,8 @@ async function getDoc(req, id) {
     throw new AppError('documento_expirado', 'Este material não foi encontrado na sua sala.', 'Volte à sala e abra o material de novo.', '', 410);
   }
   const doc = { tipo: m.tipo, nome: m.nome, numPaginas: m.numPaginas || 0, midia: m.midia, mime: m.mime, duracao: m.duracao || 0, texto: m.texto, uid, sid, mid };
+  if (m.tipo !== 'texto' && !(await S.garantirArquivo(S.arqOriginal(uid, sid, mid))))
+    throw new AppError('documento_expirado', 'O arquivo original deste material não foi encontrado no armazenamento.', 'Exclua o material e envie de novo.', '', 410);
   if (m.tipo === 'pdf') doc.base64 = base64DoArquivo(uid, sid, mid);
   if (m.tipo === 'midia') {
     if (usaApiDeArquivos(m)) {
@@ -376,8 +390,10 @@ app.get(
   wrap(async (req, res) => {
     const m = S.lerMaterial(req.usuario.id, req.params.sid, req.params.mid);
     if (m.meta.tipo === 'texto') throw Object.assign(new Error('Este material não tem arquivo.'), { status: 404, paraUsuario: true });
+    const arq = S.arqOriginal(req.usuario.id, req.params.sid, req.params.mid);
+    if (!(await S.garantirArquivo(arq))) throw Object.assign(new Error('O arquivo original não foi encontrado.'), { status: 404, paraUsuario: true });
     res.type(m.meta.mime || 'application/octet-stream');
-    res.sendFile(S.arqOriginal(req.usuario.id, req.params.sid, req.params.mid));
+    res.sendFile(arq);
   })
 );
 
@@ -400,7 +416,7 @@ app.delete(
 
 app.get(
   '/api/salas/:sid/materiais/:mid/imagens/:iid',
-  wrap(async (req, res) => res.json(S.lerImagem(req.usuario.id, req.params.sid, req.params.mid, req.params.iid)))
+  wrap(async (req, res) => res.json(await S.lerImagem(req.usuario.id, req.params.sid, req.params.mid, req.params.iid)))
 );
 
 function formatarTempo(seg) {

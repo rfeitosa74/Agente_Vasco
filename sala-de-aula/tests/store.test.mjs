@@ -25,7 +25,7 @@ test('usuários: senha com hash, login, troca de senha e último administrador',
   assert.throws(() => S.removerUsuario(admin.id), /único administrador/);
 });
 
-test('salas e materiais ficam separados por usuário', () => {
+test('salas e materiais ficam separados por usuário', async () => {
   const a = S.criarUsuario({ usuario: 'pai', senha: '123456', admin: true });
   const b = S.criarUsuario({ usuario: 'filho', senha: '123456' });
   const sala = S.criarSala(a.id, { nome: 'Ciências', tipo: 'disciplina' });
@@ -41,7 +41,7 @@ test('salas e materiais ficam separados por usuário', () => {
   assert.throws(() => S.lerMaterial(b.id, sala.id, m.id), /não encontrado/);
   assert.throws(() => S.lerSala(a.id, '../../usuarios.json'), /id inválido/);
   const img = S.salvarImagem(a.id, sala.id, m.id, { mimeType: 'image/png', data: Buffer.from('png').toString('base64') });
-  assert.equal(Buffer.from(S.lerImagem(a.id, sala.id, m.id, img).data, 'base64').toString(), 'png');
+  assert.equal(Buffer.from((await S.lerImagem(a.id, sala.id, m.id, img)).data, 'base64').toString(), 'png');
   S.removerMaterial(a.id, sala.id, m.id);
   assert.equal(S.lerSala(a.id, sala.id).materiais.length, 0);
   S.removerSala(a.id, sala.id);

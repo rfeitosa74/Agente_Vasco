@@ -18,6 +18,7 @@
   "license": "ISC",
   "dependencies": {
     "@google/genai": "^3.0.0",
+    "@replit/object-storage": "^1.0.0",
     "@resvg/resvg-js": "^2.6.2",
     "dotenv": "^18.0.9",
     "express": "^5.3.0",
