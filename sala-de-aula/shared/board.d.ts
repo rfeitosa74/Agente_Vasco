@@ -1,0 +1,11 @@
+import type { Board } from '../src/types';
+export const VIEW_W: number;
+export const VIEW_H: number;
+export const KINDS: string[];
+export const SVG_KINDS: string[];
+export const CORES: Record<string, string>;
+export function validateBoard(input: unknown): { board: Board; problemas: string[] };
+export function listElements(board: Board | null | undefined): { id: string; rotulo: string }[];
+export function describeBoard(board: Board | null | undefined): string;
+export function renderBoardSvg(board: Board, opts?: { highlights?: string[]; standalone?: boolean }): string;
+export function wrapText(text: string, maxChars: number, maxLines?: number): { lines: string[]; truncated: boolean };

@@ -1,0 +1,2 @@
+{"tipo":"grafico","pergunta":"Em que meses chove mais?","titulo":"Chuva ao longo do ano","explicacao":"x","fontes":["p. 4"],
+"grafico":{"tipo":"barras","eixoX":"Mês","eixoY":"Chuva","unidade":"mm","series":[{"id":"s1","nome":"2024","cor":"azul","pontos":[{"x":"Jan","y":240},{"x":"Fev","y":210},{"x":"Mar","y":180},{"x":"Abr","y":90},{"x":"Mai","y":60},{"x":"Jun","y":40}]}]}}

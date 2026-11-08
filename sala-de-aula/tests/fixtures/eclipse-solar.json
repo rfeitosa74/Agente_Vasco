@@ -1,0 +1,16 @@
+{
+  "tipo": "desenho",
+  "pergunta": "Por que algumas pessoas veem o eclipse solar total e outras só parcial?",
+  "titulo": "Eclipse solar: a Lua entre o Sol e a Terra",
+  "explicacao": "A Lua bloqueia a luz do Sol. Atrás dela forma-se a umbra (sombra total) e, ao redor, a penumbra (sombra parcial).",
+  "legendaGeral": "Fora de escala",
+  "fontes": ["p. 2"],
+  "desenho": { "elementos": [
+    {"id":"penumbra","tipo":"poligono","cor":"sombraClara","pontos":[{"x":520,"y":262},{"x":520,"y":298},{"x":860,"y":400},{"x":860,"y":160}],"rotulo":"Penumbra (sombra parcial)","rotuloX":700,"rotuloY":140,"camada":1},
+    {"id":"umbra","tipo":"poligono","cor":"sombraEscura","pontos":[{"x":520,"y":262},{"x":520,"y":298},{"x":800,"y":284},{"x":800,"y":276}],"rotulo":"Umbra (sombra total)","rotuloX":690,"rotuloY":470,"camada":2},
+    {"id":"sol","tipo":"circulo","x":130,"y":280,"r":95,"cor":"amarelo","rotulo":"Sol","camada":3},
+    {"id":"lua","tipo":"circulo","x":520,"y":280,"r":18,"cor":"cinza","rotulo":"Lua","rotuloX":520,"rotuloY":335,"camada":3},
+    {"id":"terra","tipo":"circulo","x":880,"y":280,"r":70,"cor":"azulEscuro","rotulo":"Terra","camada":0},
+    {"id":"luz1","tipo":"seta","x":240,"y":200,"x2":420,"y2":230,"cor":"amarelo","espessura":3,"rotulo":"Luz do Sol","rotuloX":330,"rotuloY":190}
+  ]}
+}

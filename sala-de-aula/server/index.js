@@ -1,0 +1,520 @@
+// Servidor da "Minha sala de aula".
+// Guarda a chave da API Gemini e faz todas as chamadas que precisam dela.
+import 'dotenv/config';
+import express from 'express';
+import multer from 'multer';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Resvg } from '@resvg/resvg-js';
+import { Modality } from '@google/genai';
+import {
+  ai,
+  AppError,
+  generateImage,
+  generateJson,
+  generateText,
+  hasKey,
+  listModels,
+  modelStatus,
+  publicError,
+  resolveModel,
+  toAppError,
+} from './gemini.js';
+import * as P from './prompts.js';
+import { describeBoard, renderBoardSvg, SVG_KINDS, validateBoard } from '../shared/board.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(__dirname, '..');
+const PORT = Number(process.env.PORT || 5173);
+const HOST = process.env.HOST || '127.0.0.1';
+const ACCESS_CODE = process.env.ACCESS_CODE || '';
+const isProd = process.env.NODE_ENV === 'production';
+
+const app = express();
+app.use(express.json({ limit: '40mb' }));
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
+
+// ---------------------------------------------------------------------------
+// Código de acesso opcional (recomendado se o servidor ficar visível na rede)
+// ---------------------------------------------------------------------------
+app.use('/api', (req, res, next) => {
+  if (!ACCESS_CODE || req.path === '/status') return next();
+  const got = req.get('x-access-code') || '';
+  const ok = got.length === ACCESS_CODE.length && crypto.timingSafeEqual(Buffer.from(got), Buffer.from(ACCESS_CODE));
+  if (!ok) return res.status(401).json({ erro: { tipo: 'acesso', mensagem: 'Código de acesso incorreto.', comoResolver: 'Digite o código definido em ACCESS_CODE no servidor.' } });
+  next();
+});
+
+const wrap = (fn) => async (req, res) => {
+  try {
+    await fn(req, res);
+  } catch (e) {
+    const ae = toAppError(e);
+    if (!(e instanceof AppError)) console.error('[erro]', e);
+    else console.warn(`[${ae.tipo}] ${ae.message}${ae.detalhe ? ` — ${ae.detalhe.slice(0, 200)}` : ''}`);
+    res.status(ae.status || 500).json({ erro: publicError(ae) });
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Documentos (em memória; o navegador reenvia se o servidor reiniciar)
+// ---------------------------------------------------------------------------
+const docs = new Map();
+const MAX_DOCS = 12;
+
+function getDoc(id) {
+  const d = docs.get(String(id || ''));
+  if (!d) throw new AppError('documento_expirado', 'O servidor não encontrou este material (talvez tenha sido reiniciado).', 'O aplicativo vai reenviar o material automaticamente.', '', 410);
+  return d;
+}
+
+function docParts(doc) {
+  if (doc.tipo === 'pdf') return [{ inlineData: { mimeType: 'application/pdf', data: doc.base64 } }];
+  return [{ text: `MATERIAL DE ESTUDO (anotações em texto${doc.nome ? `: "${doc.nome}"` : ''}):\n"""\n${doc.texto}\n"""` }];
+}
+
+app.post(
+  '/api/documents',
+  upload.single('arquivo'),
+  wrap(async (req, res) => {
+    let doc;
+    if (req.file) {
+      const isPdf = req.file.mimetype === 'application/pdf' || req.file.buffer.subarray(0, 5).toString() === '%PDF-';
+      if (!isPdf) throw new AppError('formato', 'O arquivo enviado não é um PDF.', 'Envie um arquivo .pdf ou cole o texto das anotações.', '', 400);
+      if (req.file.size > 19 * 1024 * 1024)
+        throw new AppError('tamanho', 'O PDF é grande demais (limite de 19 MB).', 'Divida o PDF em partes menores ou envie só as páginas da matéria.', '', 413);
+      doc = {
+        tipo: 'pdf',
+        nome: req.body.nome || req.file.originalname,
+        base64: req.file.buffer.toString('base64'),
+        numPaginas: Number(req.body.numPaginas) || 0,
+      };
+    } else {
+      const texto = String(req.body.texto || '').trim();
+      if (texto.length < 40) throw new AppError('formato', 'O texto colado é curto demais para preparar uma aula.', 'Cole as anotações completas da matéria.', '', 400);
+      doc = { tipo: 'texto', nome: String(req.body.nome || ''), texto: texto.slice(0, 200000) };
+    }
+    const id = crypto.randomUUID();
+    docs.set(id, doc);
+    while (docs.size > MAX_DOCS) docs.delete(docs.keys().next().value);
+    res.json({ docId: id });
+  })
+);
+
+function slug(s, fb) {
+  return (
+    String(s || '')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_|_$/g, '')
+      .slice(0, 40) || fb
+  );
+}
+
+app.post(
+  '/api/analyze',
+  wrap(async (req, res) => {
+    const doc = getDoc(req.body.docId);
+    const temPaginas = doc.tipo === 'pdf' && doc.numPaginas > 0;
+    const { data, modelo } = await generateJson({
+      parts: [...docParts(doc), { text: P.analisePrompt({ temPaginas, numPaginas: doc.numPaginas, nomeArquivo: doc.nome }) }],
+      schema: P.ANALISE_SCHEMA,
+      temperature: 0.2,
+      acao: 'analisar o material',
+    });
+    if (!data.analisavel || !Array.isArray(data.conceitos) || !data.conceitos.length) {
+      throw new AppError(
+        'nao_analisavel',
+        `Não foi possível preparar uma aula com este material${data.motivoNaoAnalisavel ? `: ${data.motivoNaoAnalisavel}` : '.'}`,
+        doc.tipo === 'pdf' ? 'Se o PDF for uma digitalização de baixa qualidade, tente outro arquivo ou cole o texto.' : 'Confira se o texto colado contém a matéria.',
+        '',
+        422
+      );
+    }
+    // Normalização: ids únicos e páginas reais
+    const pageOk = (p) => temPaginas && Number.isInteger(p) && p >= 1 && p <= doc.numPaginas;
+    const ids = new Set();
+    const secoes = (data.secoes || []).map((s, i) => {
+      const o = { id: slug(s.id || s.titulo, `secao${i + 1}`), titulo: String(s.titulo || `Parte ${i + 1}`) };
+      if (pageOk(s.paginaInicio)) o.paginaInicio = s.paginaInicio;
+      if (pageOk(s.paginaFim)) o.paginaFim = s.paginaFim;
+      return o;
+    });
+    const conceitos = data.conceitos.slice(0, 10).map((c, i) => {
+      let id = slug(c.id || c.nome, `conceito${i + 1}`);
+      while (ids.has(id)) id += '_';
+      ids.add(id);
+      return {
+        id,
+        nome: String(c.nome),
+        resumo: String(c.resumo || ''),
+        conteudo: String(c.conteudo || ''),
+        perguntaCentral: String(c.perguntaCentral || ''),
+        representacao: c.representacao,
+        motivoRepresentacao: String(c.motivoRepresentacao || ''),
+        paginas: [...new Set((c.paginas || []).filter(pageOk))].sort((a, b) => a - b),
+        secoes: (c.secoes || []).map((s) => slug(s, '')).filter((s) => secoes.some((x) => x.id === s)),
+        figuras: (c.figuras || []).map((f) => ({ descricao: String(f.descricao || ''), ...(pageOk(f.pagina) ? { pagina: f.pagina } : {}) })),
+      };
+    });
+    res.json({
+      analise: {
+        titulo: String(data.titulo || doc.nome || 'Material de estudo'),
+        disciplina: String(data.disciplina || ''),
+        resumo: String(data.resumo || ''),
+        temPaginas,
+        numPaginas: doc.numPaginas || 0,
+        secoes,
+        conceitos,
+      },
+      modelo,
+    });
+  })
+);
+
+// ---------------------------------------------------------------------------
+// Quadro: gerar → validar → desenhar → revisar → corrigir
+// ---------------------------------------------------------------------------
+function boardPng(board) {
+  if (!SVG_KINDS.includes(board.tipo)) return null;
+  try {
+    const svg = renderBoardSvg(board, { standalone: true });
+    const png = new Resvg(svg, { fitTo: { mode: 'width', value: 1000 }, font: { loadSystemFonts: true } }).render().asPng();
+    return png.toString('base64');
+  } catch (e) {
+    console.warn('Falha ao desenhar o quadro para revisão:', e.message);
+    return null;
+  }
+}
+
+function textoAlternativo(conceito) {
+  const fig = (conceito.figuras || []).find((f) => f.pagina);
+  return validateBoard({
+    tipo: 'texto',
+    pergunta: conceito.perguntaCentral,
+    titulo: conceito.nome,
+    explicacao: conceito.resumo,
+    texto: { blocos: [{ id: 'material', titulo: 'O que o material diz', texto: conceito.conteudo }] },
+    ...(fig ? { figuraOriginal: { pagina: fig.pagina, motivo: fig.descricao } } : {}),
+  }).board;
+}
+
+// Remove referências a páginas que não existem (ou qualquer página, se o material não tiver páginas).
+function sanitizeRefs(result, doc) {
+  const b = result.board;
+  const temPaginas = doc.tipo === 'pdf' && doc.numPaginas > 0;
+  const paginaValida = (n) => temPaginas && n >= 1 && n <= doc.numPaginas;
+  b.fontes = (b.fontes || []).filter((f) => {
+    const m = /\bp(?:ág(?:ina)?)?s?\.?\s*(\d+)/i.exec(f);
+    return !m || paginaValida(Number(m[1]));
+  });
+  if (b.figuraOriginal && !paginaValida(Number(b.figuraOriginal.pagina))) delete b.figuraOriginal;
+  return result;
+}
+
+async function buildBoard(doc, conceito, opts = {}) {
+  return sanitizeRefs(await buildBoardRaw(doc, conceito, opts), doc);
+}
+
+async function buildBoardRaw(doc, conceito, { pedido = '', quadroAtual = '' } = {}) {
+  const temPaginas = doc.tipo === 'pdf' && doc.numPaginas > 0;
+  const base = P.boardPrompt({ conceito, temPaginas, pedido, quadroAtual });
+  const gen1 = await generateJson({ parts: [...docParts(doc), { text: base }], schema: P.BOARD_SCHEMA, temperature: 0.35, acao: 'montar o quadro' });
+  let { board, problemas } = validateBoard(gen1.data);
+  const modelo = gen1.modelo;
+
+  // Revisão de precisão (com a imagem do quadro, quando é um desenho)
+  const png = boardPng(board);
+  let revisao;
+  try {
+    const rev = await generateJson({
+      parts: [
+        ...docParts(doc),
+        ...(png ? [{ inlineData: { mimeType: 'image/png', data: png } }] : []),
+        { text: P.revisaoPrompt({ conceito, descricao: describeBoard(board), problemasAuto: problemas, temImagem: !!png }) },
+      ],
+      schema: P.REVISAO_SCHEMA,
+      temperature: 0.1,
+      acao: 'revisar o quadro',
+    });
+    revisao = rev.data;
+  } catch (e) {
+    // Sem revisão: mostra o quadro, mas avisa que não foi conferido.
+    return { board, revisao: { status: 'nao_revisado', problemas, aviso: `A revisão automática falhou: ${toAppError(e).message}` }, modelo };
+  }
+
+  if (revisao.confiavel === false) {
+    return {
+      board: textoAlternativo(conceito),
+      revisao: { status: 'texto_alternativo', problemas: revisao.problemas || [], aviso: 'Não foi possível montar um desenho confiável deste conceito; veja a explicação em texto e a figura original, se houver.' },
+      modelo,
+    };
+  }
+  const todos = [...new Set([...(revisao.problemas || []), ...problemas])];
+  if (revisao.aprovado && problemas.length === 0) return { board, revisao: { status: 'aprovado', problemas: [] }, modelo };
+  if (!todos.length) return { board, revisao: { status: 'aprovado', problemas: [] }, modelo };
+
+  // Correção: nova geração com a lista de problemas
+  const corr = await generateJson({
+    parts: [
+      ...docParts(doc),
+      {
+        text: `${base}\n\nUMA VERSÃO ANTERIOR DESTE QUADRO TINHA ERROS. Versão anterior:\n${describeBoard(board)}\n\nCorrija TODOS estes problemas:\n- ${todos.join('\n- ')}`,
+      },
+    ],
+    schema: P.BOARD_SCHEMA,
+    temperature: 0.2,
+    acao: 'corrigir o quadro',
+  });
+  const v2 = validateBoard(corr.data);
+  return {
+    board: v2.board,
+    revisao: {
+      status: v2.problemas.length ? 'corrigido_com_avisos' : 'corrigido',
+      problemas: todos,
+      avisos: v2.problemas,
+    },
+    modelo,
+  };
+}
+
+app.post(
+  '/api/board',
+  wrap(async (req, res) => {
+    const doc = getDoc(req.body.docId);
+    const conceito = req.body.conceito;
+    if (!conceito?.nome) throw new AppError('formato', 'Conceito não informado.', '', '', 400);
+    res.json(await buildBoard(doc, conceito, { pedido: req.body.pedido, quadroAtual: req.body.quadroAtual }));
+  })
+);
+
+// ---------------------------------------------------------------------------
+// Perguntas e atalhos
+// ---------------------------------------------------------------------------
+app.post(
+  '/api/ask',
+  wrap(async (req, res) => {
+    const doc = getDoc(req.body.docId);
+    const { conceito, acao, pergunta, historico, quadroAtual, nivel } = req.body;
+    if (!conceito?.nome) throw new AppError('formato', 'Conceito não informado.', '', '', 400);
+    if (acao === 'pergunta' && !String(pergunta || '').trim()) throw new AppError('formato', 'Escreva uma pergunta.', '', '', 400);
+    const temPaginas = doc.tipo === 'pdf' && doc.numPaginas > 0;
+    const { data, modelo } = await generateJson({
+      parts: [...docParts(doc), { text: P.perguntaPrompt({ conceito, acao, pergunta, historico, quadroAtual, temPaginas, nivel: String(nivel || '').slice(0, 120) }) }],
+      schema: P.RESPOSTA_SCHEMA,
+      temperature: acao === 'outra_maneira' ? 0.7 : 0.4,
+      acao: 'responder',
+    });
+    const out = { resposta: String(data.resposta || ''), destacar: data.destacar || [], modelo };
+    if (data.atualizarQuadro) {
+      try {
+        const pedido = `${data.pedidoParaQuadro || ''} (Contexto: ${P.ACOES[acao] || ''} ${pergunta ? `Pergunta: ${pergunta}` : ''} Resposta dada ao aluno: ${out.resposta})`;
+        Object.assign(out, await buildBoard(doc, conceito, { pedido, quadroAtual }));
+        out.destacar = [];
+      } catch (e) {
+        out.boardErro = publicError(toAppError(e, 'atualizar o quadro'));
+      }
+    }
+    res.json(out);
+  })
+);
+
+// ---------------------------------------------------------------------------
+// Agora eu explico
+// ---------------------------------------------------------------------------
+app.post(
+  '/api/explain/question',
+  wrap(async (req, res) => {
+    const doc = getDoc(req.body.docId);
+    const { data } = await generateJson({
+      parts: [...docParts(doc), { text: P.perguntaAbertaPrompt({ conceito: req.body.conceito }) }],
+      schema: P.PERGUNTA_ABERTA_SCHEMA,
+      temperature: 0.6,
+      acao: 'preparar a pergunta',
+    });
+    res.json({ pergunta: data.pergunta });
+  })
+);
+
+app.post(
+  '/api/explain/evaluate',
+  wrap(async (req, res) => {
+    const doc = getDoc(req.body.docId);
+    const { conceito, pergunta, resposta } = req.body;
+    if (!String(resposta || '').trim()) throw new AppError('formato', 'A explicação está vazia.', 'Fale ou escreva sua explicação antes de terminar.', '', 400);
+    const { data, modelo } = await generateJson({
+      parts: [...docParts(doc), { text: P.avaliacaoPrompt({ conceito, pergunta, resposta }) }],
+      schema: P.AVALIACAO_SCHEMA,
+      temperature: 0.1,
+      acao: 'avaliar a explicação',
+    });
+    res.json({ ...data, modelo });
+  })
+);
+
+app.post(
+  '/api/transcribe',
+  upload.single('audio'),
+  wrap(async (req, res) => {
+    if (!req.file?.buffer?.length) throw new AppError('formato', 'Nenhum áudio recebido.', 'Grave novamente.', '', 400);
+    const mime = (req.file.mimetype || 'audio/webm').split(';')[0];
+    const { text } = await generateText({
+      parts: [
+        { inlineData: { mimeType: mime, data: req.file.buffer.toString('base64') } },
+        {
+          text: 'Transcreva literalmente esta fala em português do Brasil. Devolva somente a transcrição, sem comentários, sem corrigir o conteúdo. Se não houver fala compreensível, devolva exatamente: [sem fala]',
+        },
+      ],
+      temperature: 0,
+      acao: 'transcrever o áudio',
+    });
+    const texto = text.trim();
+    res.json({ texto: texto === '[sem fala]' ? '' : texto });
+  })
+);
+
+// ---------------------------------------------------------------------------
+// Infográficos (Nano Banana Pro)
+// ---------------------------------------------------------------------------
+app.post(
+  '/api/infographic/direction',
+  wrap(async (req, res) => {
+    const doc = getDoc(req.body.docId);
+    const { conceito, duvida, quadroAtual } = req.body;
+    const { data, modelo } = await generateJson({
+      parts: [...docParts(doc), { text: P.direcaoPrompt({ conceito, duvida, quadroAtual }) }],
+      schema: P.DIRECAO_SCHEMA,
+      temperature: 0.5,
+      acao: 'preparar a direção visual',
+    });
+    data.secoes = (data.secoes || []).slice(0, 3);
+    res.json({ direcao: data, modelo });
+  })
+);
+
+app.post(
+  '/api/infographic/generate',
+  wrap(async (req, res) => {
+    const d = req.body.direcao;
+    if (!d?.titulo) throw new AppError('formato', 'Direção visual ausente.', '', '', 400);
+    const img = await generateImage({ parts: [{ text: P.imagemPrompt(d) }] });
+    res.json(img);
+  })
+);
+
+app.post(
+  '/api/infographic/edit',
+  wrap(async (req, res) => {
+    const { imagem, instrucao, direcao } = req.body;
+    if (!imagem?.data || !String(instrucao || '').trim()) throw new AppError('formato', 'Informe a correção desejada.', '', '', 400);
+    const img = await generateImage({
+      parts: [{ inlineData: { mimeType: imagem.mimeType || 'image/png', data: imagem.data } }, { text: P.correcaoImagemPrompt({ instrucao, direcao }) }],
+    });
+    res.json(img);
+  })
+);
+
+app.post(
+  '/api/infographic/review',
+  wrap(async (req, res) => {
+    const doc = getDoc(req.body.docId);
+    const { conceito, direcao, imagem } = req.body;
+    const { data, modelo } = await generateJson({
+      parts: [...docParts(doc), { inlineData: { mimeType: imagem.mimeType || 'image/png', data: imagem.data } }, { text: P.revisaoImagemPrompt({ conceito, direcao }) }],
+      schema: P.REVISAO_IMAGEM_SCHEMA,
+      temperature: 0.1,
+      acao: 'revisar o infográfico',
+    });
+    res.json({ ...data, modelo });
+  })
+);
+
+// ---------------------------------------------------------------------------
+// Live: token efêmero (a chave real fica no servidor)
+// ---------------------------------------------------------------------------
+app.post(
+  '/api/live/token',
+  wrap(async (req, res) => {
+    const modelo = await resolveModel('live');
+    const agora = Date.now();
+    let token;
+    try {
+      token = await ai().authTokens.create({
+        config: {
+          uses: 1,
+          expireTime: new Date(agora + 30 * 60 * 1000).toISOString(),
+          newSessionExpireTime: new Date(agora + 2 * 60 * 1000).toISOString(),
+          liveConnectConstraints: { model: modelo, config: { responseModalities: [Modality.AUDIO] } },
+          lockAdditionalFields: [],
+          httpOptions: { apiVersion: 'v1alpha' },
+        },
+      });
+    } catch (e) {
+      throw toAppError(e, 'criar o acesso temporário do tutor por voz');
+    }
+    res.json({
+      token: token.name,
+      modelo,
+      expiraEm: new Date(agora + 30 * 60 * 1000).toISOString(),
+      // Somente nos testes automatizados (servidor Gemini simulado):
+      ...(process.env.GEMINI_TEST_BASE_URL ? { testBaseUrl: process.env.GEMINI_TEST_BASE_URL } : {}),
+    });
+  })
+);
+
+// ---------------------------------------------------------------------------
+// Situação e diagnóstico
+// ---------------------------------------------------------------------------
+app.get(
+  '/api/status',
+  wrap(async (req, res) => {
+    const out = { chaveConfigurada: hasKey(), exigeCodigo: !!ACCESS_CODE };
+    if (req.query.verificar && hasKey()) {
+      if (ACCESS_CODE && req.get('x-access-code') !== ACCESS_CODE) return res.json(out);
+      await listModels(true).catch(() => {});
+      out.modelos = await modelStatus();
+    }
+    res.json(out);
+  })
+);
+
+app.get(
+  '/api/samples',
+  wrap(async (_req, res) => {
+    const dir = path.join(ROOT, 'samples');
+    const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.md')).sort() : [];
+    res.json(
+      files.map((f) => {
+        const texto = fs.readFileSync(path.join(dir, f), 'utf8');
+        const titulo = (texto.match(/^#\s+(.+)$/m) || [])[1] || f;
+        return { id: f.replace(/\.md$/, ''), titulo, texto };
+      })
+    );
+  })
+);
+
+app.use('/api', (_req, res) => res.status(404).json({ erro: { tipo: 'rota', mensagem: 'Rota não encontrada.' } }));
+
+// ---------------------------------------------------------------------------
+// Interface
+// ---------------------------------------------------------------------------
+if (isProd) {
+  const dist = path.join(ROOT, 'dist');
+  app.use(express.static(dist));
+  app.get(/.*/, (_req, res) => res.sendFile(path.join(dist, 'index.html')));
+} else {
+  const { createServer } = await import('vite');
+  const vite = await createServer({ root: ROOT, server: { middlewareMode: true }, appType: 'spa' });
+  app.use(vite.middlewares);
+}
+
+app.listen(PORT, HOST, () => {
+  console.log(`\nMinha sala de aula: http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
+  if (!hasKey()) console.log('ATENÇÃO: GEMINI_API_KEY não definida. Crie o arquivo .env (veja .env.example).');
+  if (HOST !== '127.0.0.1' && HOST !== 'localhost' && !ACCESS_CODE)
+    console.log('ATENÇÃO: o servidor está visível na rede sem ACCESS_CODE. Qualquer pessoa na rede poderá usar sua chave.');
+});
