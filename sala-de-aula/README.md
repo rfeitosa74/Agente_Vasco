@@ -6,6 +6,13 @@ real** (API Live do Gemini), a atividade **“Agora eu explico”** e **infográ
 
 Tudo em português do Brasil, pensado para um aluno do fim do 6º ano.
 
+## Documentos
+
+- [Manual do usuário](docs/MANUAL-USUARIO.md)
+- [Manual do administrador](docs/MANUAL-ADMINISTRADOR.md)
+- [Relatório de segurança](docs/RELATORIO-SEGURANCA.md)
+- [Recriar a plataforma do zero em outra IA](docs/RECRIAR-DO-ZERO.md)
+
 ## 1. O que você precisa
 
 1. **Node.js 20 ou mais novo** (https://nodejs.org).
