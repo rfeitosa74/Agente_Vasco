@@ -22,6 +22,8 @@ const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, d
 const page = await ctx.newPage();
 const errosConsole = [];
 page.on('pageerror', (e) => errosConsole.push(String(e)));
+// Qualquer bloqueio da política de segurança do navegador (CSP) conta como erro
+page.on('console', (m) => /Content Security Policy|Refused to/i.test(m.text()) && errosConsole.push(m.text()));
 
 await entrar(page, APP);
 // O administrador cria a conta do Luan

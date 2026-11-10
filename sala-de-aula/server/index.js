@@ -41,7 +41,44 @@ const abrirNavegador = process.argv.includes('--abrir');
 
 const app = express();
 app.set('trust proxy', 1); // HTTPS termina no proxy do Render
-app.use(express.json({ limit: '40mb' }));
+app.disable('x-powered-by');
+
+// ---------------------------------------------------------------------------
+// Cabeçalhos de segurança
+// ---------------------------------------------------------------------------
+const NO_EDITOR_REPLIT = !!process.env.REPL_ID && !process.env.REPLIT_DEPLOYMENT; // a pré-visualização do Replit usa moldura
+const ORIGEM_TESTE = process.env.GEMINI_TEST_BASE_URL ? ` ${process.env.GEMINI_TEST_BASE_URL} ${process.env.GEMINI_TEST_BASE_URL.replace(/^http/, 'ws')}` : '';
+const CSP = [
+  "default-src 'self'",
+  // blob: é necessário para o processador de áudio do microfone; wasm para o leitor de PDF
+  "script-src 'self' blob: 'wasm-unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "media-src 'self' blob:",
+  "font-src 'self' data: blob:",
+  "worker-src 'self' blob:",
+  `connect-src 'self' https://generativelanguage.googleapis.com wss://generativelanguage.googleapis.com${ORIGEM_TESTE}`,
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  ...(NO_EDITOR_REPLIT ? [] : ["frame-ancestors 'none'"]),
+].join('; ');
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Permissions-Policy', 'camera=(), geolocation=(), microphone=(self)');
+  if (!NO_EDITOR_REPLIT) res.setHeader('X-Frame-Options', 'DENY');
+  if (req.secure) res.setHeader('Strict-Transport-Security', 'max-age=15552000');
+  if (isProd) res.setHeader('Content-Security-Policy', CSP);
+  if (req.path.startsWith('/api/')) res.setHeader('Cache-Control', 'no-store');
+  next();
+});
+
+// Quem ainda não entrou só pode enviar pedidos pequenos (login); os grandes vêm depois da autenticação.
+const jsonPequeno = express.json({ limit: '50kb' });
+const jsonGrande = express.json({ limit: '40mb' });
+const ROTAS_ABERTAS = ['/api/login', '/api/setup', '/api/logout'];
+app.use((req, res, next) => (ROTAS_ABERTAS.includes(req.path) ? jsonPequeno(req, res, next) : next()));
 // Só responde depois que as gravações chegarem ao armazenamento permanente.
 app.use('/api', (_req, res, next) => {
   const json = res.json.bind(res);
@@ -99,8 +136,12 @@ const ADMIN_USUARIO = process.env.ADMIN_USER || 'admin';
 
 // Na internet, o primeiro administrador vem da senha APP_PASSWORD (definida no Render).
 if (S.contarUsuarios() === 0 && SENHA) {
-  S.criarUsuario({ usuario: ADMIN_USUARIO, nome: 'Administrador', senha: SENHA, admin: true });
-  console.log(`Administrador criado: usuário "${ADMIN_USUARIO}" com a senha de APP_PASSWORD.`);
+  try {
+    S.criarUsuario({ usuario: ADMIN_USUARIO, nome: 'Administrador', senha: SENHA, admin: true });
+    console.log(`Administrador criado: usuário "${ADMIN_USUARIO}" com a senha de APP_PASSWORD.`);
+  } catch (e) {
+    console.error(`Não foi possível criar o administrador com APP_PASSWORD: ${e.message}`);
+  }
 }
 // Esqueceu a senha? Com REDEFINIR_ADMIN=sim, o usuário admin volta a usar a senha de
 // APP_PASSWORD (e volta a ser administrador). Depois, apague REDEFINIR_ADMIN.
@@ -146,6 +187,13 @@ function registrarErro(ip) {
   if (!t || Date.now() - t.desde > 15 * 60 * 1000) tentativas.set(ip, { n: 1, desde: Date.now() });
   else t.n++;
 }
+setInterval(() => {
+  const agora = Date.now();
+  for (const [ip, t] of tentativas) if (agora - t.desde > 15 * 60 * 1000) tentativas.delete(ip);
+}, 10 * 60 * 1000).unref();
+/** Texto seguro para o registro (sem quebras de linha nem caracteres de controle). */
+const paraLog = (v) => String(v ?? '').replace(/[^\w.@-]/g, '?').slice(0, 40);
+
 const erroJson = (res, status, tipo, mensagem, comoResolver = '') => res.status(status).json({ erro: { tipo, mensagem, comoResolver } });
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
@@ -178,12 +226,17 @@ app.post('/api/setup', (req, res) => {
 
 app.post('/api/login', (req, res) => {
   const ip = req.ip || 'desconhecido';
-  if (bloqueado(ip)) return erroJson(res, 429, 'acesso', 'Muitas tentativas erradas.', 'Espere 15 minutos e tente de novo.');
+  if (bloqueado(ip)) {
+    console.warn(`[login] bloqueado por excesso de tentativas: ${paraLog(ip)}`);
+    return erroJson(res, 429, 'acesso', 'Muitas tentativas erradas.', 'Espere 15 minutos e tente de novo.');
+  }
   const u = S.verificarLogin(req.body?.usuario, req.body?.senha || '');
   if (!u) {
     registrarErro(ip);
+    console.warn(`[login] falha: usuário "${paraLog(req.body?.usuario)}" de ${paraLog(ip)}`);
     return erroJson(res, 401, 'acesso', 'Usuário ou senha incorretos.');
   }
+  console.log(`[login] entrou: "${u.usuario}" de ${paraLog(ip)}`);
   tentativas.delete(ip);
   abrirSessao(req, res, u);
   res.json({ ok: true, usuario: S.publico(u) });
@@ -202,6 +255,33 @@ app.use('/api', (req, res, next) => {
   const u = usuarioDaSessao(req);
   if (!u) return erroJson(res, 401, 'login', 'Entre com seu usuário e senha para continuar.');
   req.usuario = u;
+  next();
+});
+app.use('/api', jsonGrande);
+
+// Limite de uso da IA por usuário (protege a cota e o custo da chave do Gemini).
+const LIMITE_IA = Number(process.env.LIMITE_IA_POR_5MIN || 90);
+const LIMITE_IMAGENS = Number(process.env.LIMITE_IMAGENS_POR_HORA || 15);
+const usoIA = new Map();
+function dentroDoLimite(chave, max, janelaMs) {
+  const agora = Date.now();
+  const lista = (usoIA.get(chave) || []).filter((t) => agora - t < janelaMs);
+  if (lista.length >= max) return usoIA.set(chave, lista), false;
+  lista.push(agora);
+  usoIA.set(chave, lista);
+  return true;
+}
+setInterval(() => {
+  const agora = Date.now();
+  for (const [k, l] of usoIA) if (!l.some((t) => agora - t < 60 * 60 * 1000)) usoIA.delete(k);
+}, 10 * 60 * 1000).unref();
+app.use('/api', (req, res, next) => {
+  if (req.method !== 'POST' || !/^\/(analyze|board|ask|explain|transcribe|infographic|live)(\/|$)/.test(req.path)) return next();
+  const uid = req.usuario.id;
+  if (/^\/infographic\/(generate|edit)$/.test(req.path) && !dentroDoLimite(`img:${uid}`, LIMITE_IMAGENS, 60 * 60 * 1000))
+    return erroJson(res, 429, 'cota', `Limite de ${LIMITE_IMAGENS} infográficos por hora atingido.`, 'Espere um pouco antes de gerar outro.');
+  if (!dentroDoLimite(`ia:${uid}`, LIMITE_IA, 5 * 60 * 1000))
+    return erroJson(res, 429, 'cota', 'Muitos pedidos em pouco tempo.', 'Espere alguns minutos e tente de novo.');
   next();
 });
 
@@ -393,6 +473,9 @@ app.get(
     const arq = S.arqOriginal(req.usuario.id, req.params.sid, req.params.mid);
     if (!(await S.garantirArquivo(arq))) throw Object.assign(new Error('O arquivo original não foi encontrado.'), { status: 404, paraUsuario: true });
     res.type(m.meta.mime || 'application/octet-stream');
+    // O arquivo é conteúdo enviado por usuário: nunca deve rodar como página.
+    res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'");
+    res.setHeader('Content-Disposition', 'attachment');
     res.sendFile(arq);
   })
 );
@@ -860,7 +943,8 @@ app.use('/api', (err, _req, res, next) => {
     return res.status(413).json({
       erro: { tipo: 'tamanho', mensagem: `O arquivo é grande demais (limite de ${LIMITE_MIDIA_MB} MB).`, comoResolver: 'Envie um arquivo menor, ou corte o áudio/vídeo só na parte da matéria.' },
     });
-  if (err) return res.status(400).json({ erro: { tipo: 'formato', mensagem: 'Não foi possível receber o arquivo.', detalhe: String(err.message || err) } });
+  if (err?.type === 'entity.too.large') return res.status(413).json({ erro: { tipo: 'tamanho', mensagem: 'O pedido é grande demais.' } });
+  if (err) return res.status(400).json({ erro: { tipo: 'formato', mensagem: 'Não foi possível receber o pedido.' } });
   next();
 });
 

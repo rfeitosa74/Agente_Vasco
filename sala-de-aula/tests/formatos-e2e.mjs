@@ -15,6 +15,7 @@ const b = await chromium.launch();
 const p = await (await b.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
 const errs = [];
 p.on('pageerror', (e) => errs.push(String(e)));
+p.on('console', (m) => /Content Security Policy|Refused to/i.test(m.text()) && errs.push(m.text()));
 
 await entrar(p, APP);
 async function abrir(arquivo) {
@@ -35,6 +36,22 @@ await p.getByRole('button', { name: 'Ver anotações originais' }).click();
 await p.getByText('Texto extraído do documento do Word').waitFor();
 await p.keyboard.press('Escape');
 ok(`Word (.docx): texto extraído e analisado (${meta})`);
+
+if (process.env.PDF) {
+  await p.goto(APP);
+  await p.locator('.portal-bar').waitFor();
+  await abrirSala(p, 'Formatos');
+  await p.locator('input[type=file]').setInputFiles(process.env.PDF);
+  await p.getByRole('button', { name: 'Começar aula com este documento' }).click();
+  await p.locator('.board-title').waitFor({ timeout: 30000 });
+  await p.getByRole('button', { name: 'Ver anotações originais' }).click();
+  await p.locator('.pdf-page canvas').waitFor();
+  await p.waitForTimeout(1500);
+  const pintado = await p.locator('.pdf-page canvas').evaluate((c) => c.width > 100 && c.height > 100);
+  assert.ok(pintado, 'página do PDF desenhada');
+  await p.keyboard.press('Escape');
+  ok('PDF: analisado e página original desenhada (leitor de PDF funciona com a CSP)');
+}
 
 meta = await abrir('aula.wav');
 assert.match(meta, /áudio de 00:10/);
